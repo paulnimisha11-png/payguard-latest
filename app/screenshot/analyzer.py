@@ -37,6 +37,8 @@ import statistics
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageOps
 
+from ..analyzer.rules import Finding, SEVERITY_ORDER, T
+
 # Limit CPU threads to prevent thread contention and excessive memory in cloud container environments
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
