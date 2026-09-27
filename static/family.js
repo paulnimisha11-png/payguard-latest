@@ -232,6 +232,9 @@
       if (/set up/.test(e.message)) { D.forgetLocal(); me = null; } else err(e.message);
     }
     render();
+    if (me && me.active_invite && $("#guard-code").hidden) {
+      showInvite(me.active_invite);
+    }
     D.refresh();
   }
 
@@ -267,33 +270,58 @@
   }
 
   // ------------------------------------------------------------------ guardian: make a code
+  let currentJoinUrl = "";
+  function showInvite(inv) {
+    if (!inv || !inv.code) return;
+    currentJoinUrl = inv.join_url || `${location.origin}/family?join=${inv.code}`;
+    $("#code").textContent = inv.code.slice(0, 3) + " " + inv.code.slice(3);
+    $("#code-qr").src = "/api/qr/render.png?data=" + encodeURIComponent(currentJoinUrl);
+    const wa = $("#code-wa-btn");
+    if (wa) {
+      const msg = encodeURIComponent(`Here is your PayGuard link to connect family protection: ${currentJoinUrl}\n(Code: ${inv.code}, valid for 15 mins)`);
+      wa.href = `https://api.whatsapp.com/send?text=${msg}`;
+    }
+    $("#guard-start").hidden = true;
+    $("#guard-code").hidden = false;
+    const before = new Set(((me && me.protecting) || []).map((p) => p.id));
+    const end = inv.expires_at * 1000;
+    clearInterval(codeTimer);
+    const tick = async () => {
+      const left = Math.max(0, Math.round((end - Date.now()) / 1000));
+      $("#code-exp").textContent = left ? t("expires", { m: Math.floor(left / 60), s: String(left % 60).padStart(2, "0") }) : t("expired");
+      if (!left) { clearInterval(codeTimer); return; }
+      if (left % 3 === 0) {
+        try {
+          me = await api("/api/family/me");
+          const added = me.protecting.find((p) => !before.has(p.id));
+          if (added) { clearInterval(codeTimer); cancelCode(); toast(t("linked_ok", { name: added.name })); await load(); }
+        } catch (_) {}
+      }
+    };
+    tick();
+    codeTimer = setInterval(tick, 1000);
+  }
+
+  const copyBtn = $("#code-copy-btn");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", async () => {
+      if (!currentJoinUrl) return;
+      try {
+        await navigator.clipboard.writeText(currentJoinUrl);
+        toast("📋 Link copied to clipboard!");
+      } catch (_) {
+        prompt("Copy this link to send to your family member:", currentJoinUrl);
+      }
+    });
+  }
+
   $("#make-code").addEventListener("click", async () => {
     const name = $("#g-name").value.trim();
     if (!name) { $("#g-name").focus(); return; }
     try {
       await D.ensure(name);
       const inv = await api("/api/family/invite", { method: "POST", body: JSON.stringify({ name }) });
-      $("#code").textContent = inv.code.slice(0, 3) + " " + inv.code.slice(3);
-      $("#code-qr").src = "/api/qr/render.png?data=" + encodeURIComponent(inv.join_url);
-      $("#guard-start").hidden = true;
-      $("#guard-code").hidden = false;
-      const before = new Set(((me && me.protecting) || []).map((p) => p.id));
-      const end = inv.expires_at * 1000;
-      clearInterval(codeTimer);
-      const tick = async () => {
-        const left = Math.max(0, Math.round((end - Date.now()) / 1000));
-        $("#code-exp").textContent = left ? t("expires", { m: Math.floor(left / 60), s: String(left % 60).padStart(2, "0") }) : t("expired");
-        if (!left) { clearInterval(codeTimer); return; }
-        if (left % 3 === 0) {
-          try {
-            me = await api("/api/family/me");
-            const added = me.protecting.find((p) => !before.has(p.id));
-            if (added) { clearInterval(codeTimer); cancelCode(); toast(t("linked_ok", { name: added.name })); await load(); }
-          } catch (_) {}
-        }
-      };
-      tick();
-      codeTimer = setInterval(tick, 1000);
+      showInvite(inv);
     } catch (e) { err(e.message); }
   });
   function cancelCode() { clearInterval(codeTimer); $("#guard-code").hidden = true; $("#guard-start").hidden = false; }
@@ -314,7 +342,19 @@
     } catch (e2) { err(e2.message); }
   });
   const joinCode = new URLSearchParams(location.search).get("join");
-  if (joinCode) { $("#j-code").value = joinCode.replace(/\D/g, "").slice(0, 6); setTimeout(() => $("#prot").scrollIntoView({ behavior: "smooth" }), 300); }
+  if (joinCode) {
+    const clean = joinCode.replace(/\D/g, "").slice(0, 6);
+    $("#j-code").value = clean;
+    const banner = $("#invite-banner");
+    if (banner) {
+      banner.textContent = "👋 You have a family protection invite! Enter your name below and tap 'Link my phone'.";
+      banner.hidden = false;
+    }
+    setTimeout(() => {
+      $("#prot").scrollIntoView({ behavior: "smooth" });
+      if ($("#j-name") && !$("#j-name").value) $("#j-name").focus();
+    }, 400);
+  }
 
   // ------------------------------------------------------------------ lists
   document.addEventListener("click", async (e) => {

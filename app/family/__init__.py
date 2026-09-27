@@ -139,17 +139,29 @@ def me(did: str) -> dict:
                        for i, n, p, c, ls, la in protecting],
         "protected_by": [{"id": i, "name": n or "Family member", "phone": p, "since": c} for i, n, p, c in protected_by],
         "unread": unread,
+        "active_invite": active_invite(did),
     }
 
 
-# ------------------------------------------------------------------ linking
+def active_invite(guardian_id: str) -> dict | None:
+    now = time.time()
+    with _lock:
+        row = _db.execute(
+            "SELECT code, created, expires FROM fam_invites WHERE guardian_id=? AND used=0 AND expires > ? ORDER BY created DESC LIMIT 1",
+            (guardian_id, now)
+        ).fetchone()
+    if not row:
+        return None
+    code, created, expires = row
+    return {"code": code, "expires_in": max(0, int(expires - now)), "expires_at": expires}
+
 
 def create_invite(guardian_id: str, guardian_name: str | None = None) -> dict:
     if guardian_name is not None:
         update_device(guardian_id, name=guardian_name)
     now = time.time()
     with _lock:
-        _db.execute("DELETE FROM fam_invites WHERE expires < ? OR guardian_id=?", (now, guardian_id))
+        _db.execute("DELETE FROM fam_invites WHERE expires < ? OR used=1", (now,))
         for _ in range(20):
             code = f"{secrets.randbelow(10**6):06d}"
             if not _db.execute("SELECT 1 FROM fam_invites WHERE code=?", (code,)).fetchone():
@@ -170,15 +182,24 @@ def join(protected_id: str, code: str, name: str | None, ip: str) -> dict:
         raise FamilyError(429, "Too many wrong codes. Wait 10 minutes and ask for a new code.")
     with _lock:
         row = _db.execute("SELECT guardian_id, expires, used FROM fam_invites WHERE code=?", (code,)).fetchone()
-        if not row or row[1] < now or row[2]:
+        if not row:
             _db.execute("INSERT INTO fam_join_fail VALUES (?,?)", (ip, now))
             _db.commit()
-            raise FamilyError(404, "That code is wrong or has expired. Ask your family member to create a new one.")
+            raise FamilyError(404, f"Code '{code}' was not found. Please make sure you are using the active 6-digit code.")
+        if row[2]:
+            _db.execute("INSERT INTO fam_join_fail VALUES (?,?)", (ip, now))
+            _db.commit()
+            raise FamilyError(404, "This code has already been used. Each code works only once. Ask for a new code.")
+        if row[1] < now:
+            _db.execute("INSERT INTO fam_join_fail VALUES (?,?)", (ip, now))
+            _db.commit()
+            raise FamilyError(404, "This code has expired (valid for 15 minutes). Ask for a new code.")
         guardian_id = row[0]
         if guardian_id == protected_id:
             raise FamilyError(422, "Enter this code on the OTHER person's phone, not on the phone that created it.")
         _db.execute("UPDATE fam_invites SET used=1 WHERE code=?", (code,))
         _db.execute("INSERT OR IGNORE INTO fam_links VALUES (?,?,?)", (guardian_id, protected_id, now))
+        _db.execute("DELETE FROM fam_join_fail WHERE ip=?", (ip,))
         _db.commit()
     if name:
         update_device(protected_id, name=name)

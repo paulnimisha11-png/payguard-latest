@@ -73,7 +73,11 @@
         <p class="small" data-t="code_help">On their phone: open PayGuard → Family → “I want to be protected”, and type this code:</p>
         <div class="code-box" id="code"></div>
         <img class="qr-inv" id="code-qr" alt="">
-        <p class="dim small" id="code-exp"></p>
+        <div class="row" style="margin-top:12px; gap:8px; justify-content:center;">
+          <button class="btn light small" id="code-copy-btn" type="button" style="box-shadow:inset 0 0 0 1px var(--line)">📋 Copy link</button>
+          <a class="btn light small" id="code-wa-btn" target="_blank" rel="noopener" style="box-shadow:inset 0 0 0 1px var(--line); text-decoration:none">💬 WhatsApp</a>
+        </div>
+        <p class="dim small" id="code-exp" style="margin-top:10px"></p>
         <button class="linkbtn" id="code-cancel" type="button" data-t="cancel">Cancel</button>
       </div>
       <div id="protecting-wrap" hidden>
@@ -86,6 +90,7 @@
     <section class="card" id="prot">
       <h2 style="margin-top:0" data-t="p_title">I want to be protected</h2>
       <p class="dim" data-t="p_sub">Do this on the parent's phone, with the code from your family member.</p>
+      <div id="invite-banner" class="banner" hidden style="background:color-mix(in srgb, var(--brand) 12%, var(--surface)); border:1px solid var(--brand); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:.9rem;"></div>
       <form id="join-form">
         <label class="fl" for="j-code" data-t="code_label">6-digit code</label>
         <input class="field code-input" id="j-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="••••••">

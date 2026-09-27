@@ -1,15 +1,27 @@
 import json
+import pytest
 
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 
-from app import family
+from app import family, store
 from app.family import push
 from app.main import app
 
 SCAM_QR = "upi://pay?pa=9876501234@ybl&pn=SBI%20Refund%20Dept&am=4999.00&tn=Scan%20to%20receive%20your%20refund"
 SAFE_QR = "upi://pay?pa=sharmastores@okaxis&pn=Sharma%20Stores"
+
+
+@pytest.fixture(autouse=True)
+def _reset_family_state():
+    with store._lock:
+        store._db.execute("DELETE FROM fam_join_fail")
+        store._db.commit()
+    yield
+    with store._lock:
+        store._db.execute("DELETE FROM fam_join_fail")
+        store._db.commit()
 
 
 def _device(c, name):

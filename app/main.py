@@ -591,9 +591,25 @@ async def fam_forget(request: Request):
     return {"deleted": True}
 
 
+def _public_base(request: Request) -> str:
+    base = str(request.base_url).rstrip("/")
+    proto = request.headers.get("x-forwarded-proto")
+    host = request.headers.get("x-forwarded-host")
+    if host:
+        scheme = proto or "https"
+        return f"{scheme}://{host}"
+    if proto == "https" and base.startswith("http://"):
+        return "https://" + base[7:]
+    return base
+
+
 @app.get("/api/family/me")
 async def fam_me(request: Request):
-    return family.me(_dev(request))
+    data = family.me(_dev(request))
+    if data.get("active_invite"):
+        base = _public_base(request)
+        data["active_invite"]["join_url"] = f"{base}/family?join={data['active_invite']['code']}"
+    return data
 
 
 class InviteIn(BaseModel):
@@ -605,10 +621,7 @@ async def fam_invite(request: Request, i: InviteIn):
     did = _dev(request)
     _rate_limit(_client_ip(request))
     inv = family.create_invite(did, i.name)
-    base = str(request.base_url).rstrip("/")
-    proto = request.headers.get("x-forwarded-proto")
-    if proto == "https" and base.startswith("http://"):
-        base = "https://" + base[7:]
+    base = _public_base(request)
     inv["join_url"] = f"{base}/family?join={inv['code']}"
     return inv
 
