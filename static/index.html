@@ -74,7 +74,7 @@
     <div id="panel-shot" hidden>
       <p id="ocr-warn" class="ocr-warn" hidden data-i="ocr_warn">This server can't read text in images yet, so screenshot checks will be incomplete. Fix: run <code>pip install -r requirements.txt</code> and restart the server.</p>
       <label id="shotdrop" class="drop" tabindex="0">
-        <input id="shotfile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+        <input id="shotfile" type="file" accept="image/*,.png,.jpg,.jpeg,.webp" hidden>
         <div class="drop-icon" aria-hidden="true">
           <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"><path d="M12 4h24v40l-4-3-4 3-4-3-4 3-4-3-4 3z"/><path d="M18 14h12M18 21h12M18 28h7" stroke-linecap="round"/><circle cx="33" cy="33" r="7" fill="var(--surface)"/><path d="m38 38 5 5" stroke-linecap="round"/></svg>
         </div>

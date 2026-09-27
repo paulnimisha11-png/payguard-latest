@@ -288,7 +288,11 @@ async def screenshot(request: Request, file: UploadFile = File(...), expected_am
 
         raise HTTPException(422, str(e))
     except asyncio.TimeoutError:
-        raise HTTPException(504, "Checking the image took too long.")
+        raise HTTPException(504, "Checking the image took too long. Please try again.")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Analysis failed: {str(e)}")
     store.shot_put(rep)
     return _after_check(request, rep)
 

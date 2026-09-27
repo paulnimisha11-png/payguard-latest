@@ -63,10 +63,9 @@ try:
     HAS_TESS = True
 except Exception:
     HAS_TESS = False
-
 HAS_OCR = HAS_TESS or HAS_RAPID
 
-_pref = os.environ.get("OCR_ENGINE", os.environ.get("PAYGUARD_OCR_ENGINE", "")).lower()
+_pref = os.environ.get("OCR_ENGINE", os.environ.get("APKXRAY_OCR_ENGINE", os.environ.get("PAYGUARD_OCR_ENGINE", ""))).lower()
 if _pref == "rapidocr" and HAS_RAPID:
     OCR_ENGINE = "rapidocr"
 elif _pref == "tesseract" and HAS_TESS:
@@ -80,6 +79,7 @@ def _rapid():
     if _RAPID is None:
         os.environ["OMP_NUM_THREADS"] = "1"
         os.environ["OPENBLAS_NUM_THREADS"] = "1"
+        os.environ["MKL_NUM_THREADS"] = "1"
         # screenshots are always upright; the 180° classifier sometimes flips short tokens ("₹10" -> "0L2")
         _RAPID = _RapidOCR(use_angle_cls=False)
     return _RAPID
