@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Family Protection — PayGuard</title>
+<meta name="description" content="Link a parent's phone to yours. If they check something dangerous or try to pay a risky UPI ID, you get an alert.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z' fill='%234f46e5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PayGuard">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z" fill="currentColor"/><path d="M9.5 16.5h3l2-4 3 8 2-4h3" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>PayGuard</span>
+  </a>
+  <div class="top-r">
+    <nav class="topnav" aria-label="Sections">
+      <a href="/" data-t="nav_check">Check</a>
+      <a href="/trends" data-t="nav_trends">Trends</a>
+      <a href="/family" class="on" id="nav-family"><span data-t="nav_family">Family</span><b id="fam-badge" class="badge" hidden></b></a>
+    </nav>
+    <div class="lang" role="group" aria-label="Language">
+      <button data-lang="en" class="on">EN</button><button data-lang="hi">हिंदी</button><button data-lang="kn">ಕನ್ನಡ</button><button data-lang="ta">தமிழ்</button><button data-lang="te">తెలుగు</button><button data-lang="mr">मराठी</button><button data-lang="bn">বাংলা</button>
+    </div>
+  </div>
+</header>
+
+<main id="family">
+  <div class="page-head">
+    <h1 data-t="title">Family protection</h1>
+    <p data-t="sub">Link a parent's phone to yours. If they check something dangerous — or try to pay a risky UPI ID anyway — you get an alert straight away.</p>
+  </div>
+  <p id="err" class="banner" hidden></p>
+
+  <!-- alerts inbox (guardians) -->
+  <section id="alerts-sec" hidden>
+    <div class="row" style="justify-content:space-between"><h2 class="sec-t" data-t="alerts_t">Alerts</h2>
+      <button class="linkbtn" id="mark-read" type="button" data-t="mark_read">Mark all as read</button></div>
+    <ul class="alerts" id="alerts"></ul>
+  </section>
+
+  <!-- notifications -->
+  <section id="push-sec" class="card" hidden style="margin-top:16px">
+    <h3 data-t="push_t">Get alerts as notifications</h3>
+    <p class="dim small" id="push-help"></p>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="push-on" type="button" data-t="push_on">Turn on notifications</button>
+      <button class="btn light" style="box-shadow:inset 0 0 0 1px var(--line)" id="push-test" type="button" data-t="push_test">Send a test alert</button>
+    </div>
+    <p class="small" id="push-state" style="margin-top:8px"></p>
+  </section>
+
+  <div class="grid two" style="margin-top:16px">
+    <!-- guardian side -->
+    <section class="card" id="guard">
+      <h2 style="margin-top:0" data-t="g_title">Protect a family member</h2>
+      <p class="dim" data-t="g_sub">Do this on YOUR phone. Then type the code on their phone.</p>
+      <div id="guard-start">
+        <label class="fl" for="g-name" data-t="your_name">Your name (they'll see it)</label>
+        <input class="field" id="g-name" maxlength="40" autocomplete="given-name" placeholder="Rahul">
+        <button class="btn" id="make-code" type="button" style="margin-top:12px" data-t="make_code">Create a linking code</button>
+      </div>
+      <div id="guard-code" hidden>
+        <p class="small" data-t="code_help">On their phone: open PayGuard → Family → “I want to be protected”, and type this code:</p>
+        <div class="code-box" id="code"></div>
+        <img class="qr-inv" id="code-qr" alt="">
+        <p class="dim small" id="code-exp"></p>
+        <button class="linkbtn" id="code-cancel" type="button" data-t="cancel">Cancel</button>
+      </div>
+      <div id="protecting-wrap" hidden>
+        <h3 data-t="protecting_t">People you protect</h3>
+        <ul class="people" id="protecting"></ul>
+      </div>
+    </section>
+
+    <!-- protected side -->
+    <section class="card" id="prot">
+      <h2 style="margin-top:0" data-t="p_title">I want to be protected</h2>
+      <p class="dim" data-t="p_sub">Do this on the parent's phone, with the code from your family member.</p>
+      <form id="join-form">
+        <label class="fl" for="j-code" data-t="code_label">6-digit code</label>
+        <input class="field code-input" id="j-code" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="••••••">
+        <label class="fl" for="j-name" data-t="your_name2">Your name (your family will see it)</label>
+        <input class="field" id="j-name" maxlength="40" placeholder="Papa">
+        <div class="consent" style="margin-top:12px">
+          <b data-t="consent_t">What your family member will see</b>
+          <ul>
+            <li data-t="consent_1">When you check something that looks dangerous: what kind of scam it is and a partly hidden UPI ID, number or website.</li>
+            <li data-t="consent_2">When you choose to pay a risky UPI ID anyway.</li>
+            <li data-t="consent_3">Never your messages, photos, bank details or anything that looked safe. You can stop this any time.</li>
+          </ul>
+        </div>
+        <button class="btn" type="submit" style="margin-top:12px" data-t="join">Link my phone</button>
+      </form>
+      <div id="protected-wrap" hidden>
+        <h3 data-t="protected_t">People protecting you</h3>
+        <ul class="people" id="protected"></ul>
+      </div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:16px" id="me-sec">
+    <h3 data-t="me_t">Your details</h3>
+    <p class="dim small" data-t="me_sub">Add your number so the family members you protect can call you from PayGuard with one tap.</p>
+    <form id="me-form" class="row">
+      <input class="field" id="me-name" maxlength="40" placeholder="Name" aria-label="Your name">
+      <input class="field" id="me-phone" inputmode="tel" maxlength="16" placeholder="98xxxxxxxx" aria-label="Your mobile number (optional)">
+      <button class="btn" type="submit" data-t="save">Save</button>
+    </form>
+    <p class="small" id="me-state"></p>
+    <button class="linkbtn danger-txt" id="forget" type="button" data-t="forget">Forget this phone (removes all links and alerts)</button>
+  </section>
+  <p class="privacy" data-t="privacy">Alerts are kept for 30 days. PayGuard never shares your messages, screenshots or bank details with anyone.</p>
+</main>
+
+<div id="toast" class="toast" hidden role="status"></div>
+<script src="/device.js"></script>
+<script src="/family.js"></script>
+<script src="/pwa.js"></script>
+</body>
+</html>

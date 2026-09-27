@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PayGuard — check QR codes, payment screenshots and apps before you trust them</title>
+<meta name="description" content="Upload an APK file you received on WhatsApp or SMS. APK X-Ray looks inside it and tells you in plain language whether it behaves like a banking trojan.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z' fill='%234f46e5'/%3E%3Cpath d='M10 16h12M16 10v12' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="PayGuard">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z" fill="currentColor"/><path d="M9.5 16.5h3l2-4 3 8 2-4h3" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>PayGuard</span>
+  </a>
+  <div class="top-r">
+  <nav class="topnav" aria-label="Sections">
+    <a href="/trends" data-i="nav_trends">Trends</a>
+    <a href="/family" id="nav-family"><span data-i="nav_family">Family</span><b id="fam-badge" class="badge" hidden></b></a>
+  </nav>
+  <button class="btn install" id="install-btn" type="button" hidden>⬇ Install app</button>
+  <div class="lang" role="group" aria-label="Language">
+    <button data-lang="en" class="on">EN</button>
+    <button data-lang="hi">हिंदी</button>
+    <button data-lang="kn">ಕನ್ನಡ</button>
+    <button data-lang="ta">தமிழ்</button>
+    <button data-lang="te">తెలుగు</button>
+    <button data-lang="mr">मराठी</button>
+    <button data-lang="bn">বাংলা</button>
+  </div>
+  </div>
+</header>
+
+<main>
+  <!-- ============ HOME ============ -->
+  <section id="home">
+    <div class="hero">
+      <p class="eyebrow" data-i="eyebrow">Stop the scam before you pay, tap or install</p>
+      <h1 data-i="h1">Got a suspicious message, QR code or app? <span>Check it first.</span></h1>
+      <p class="lead" data-i="lead">Fake “electricity cut-off”, “KYC blocked” and “parcel held” messages, “scan to receive money” QR codes, edited payment screenshots and trojan apps. Paste or upload it here and we tell you in plain language whether it’s a scam.</p>
+    </div>
+
+    <div class="modes" role="tablist">
+      <button class="mode" data-mode="msg"><span aria-hidden="true">💬</span> <span data-i="mode_msg">Message / SMS</span></button>
+      <button class="mode" data-mode="qr"><span aria-hidden="true">🔳</span> <span data-i="mode_qr">QR code / UPI link</span></button>
+      <button class="mode" data-mode="shot"><span aria-hidden="true">🧾</span> <span data-i="mode_shot">Payment screenshot</span></button>
+      <button class="mode" data-mode="apk"><span aria-hidden="true">📦</span> <span data-i="mode_apk">App file (.apk)</span></button>
+    </div>
+
+    <div id="panel-msg" hidden>
+      <form id="msgform" class="msgform">
+        <label for="msgtext" class="msg-label" data-i="msg_label">Paste the SMS, WhatsApp message or email you received</label>
+        <textarea id="msgtext" rows="6" maxlength="20000" spellcheck="false" placeholder="Dear Consumer, your electricity will be disconnected tonight at 9.30pm…"></textarea>
+        <div class="msg-actions">
+          <button class="btn light" type="button" id="msg-paste"><span aria-hidden="true">📋</span> <span data-i="msg_paste">Paste</span></button>
+          <button class="btn light" type="button" id="msg-example" data-i="msg_example">Try an example</button>
+          <button class="btn primary" type="submit"><span data-i="msg_check">Check message</span></button>
+        </div>
+      </form>
+      <p class="privacy" data-i="msg_privacy">We don't store your message. We only check it, and if you report it, we count the scammer's links, UPI IDs and numbers — never your text.</p>
+    </div>
+
+    <div id="panel-shot" hidden>
+      <p id="ocr-warn" class="ocr-warn" hidden data-i="ocr_warn">This server can't read text in images yet, so screenshot checks will be incomplete. Fix: run <code>pip install -r requirements.txt</code> and restart the server.</p>
+      <label id="shotdrop" class="drop" tabindex="0">
+        <input id="shotfile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+        <div class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"><path d="M12 4h24v40l-4-3-4 3-4-3-4 3-4-3-4 3z"/><path d="M18 14h12M18 21h12M18 28h7" stroke-linecap="round"/><circle cx="33" cy="33" r="7" fill="var(--surface)"/><path d="m38 38 5 5" stroke-linecap="round"/></svg>
+        </div>
+        <strong data-i="shot_title">Upload the payment screenshot you were shown</strong>
+        <span data-i="shot_sub">We look for edits, fake details and pending payments</span>
+      </label>
+      <div class="qr-alt">
+        <label class="expect" for="shotexpect"><span data-i="shot_expect">Amount you're expecting (optional)</span>
+          <input id="shotexpect" type="number" inputmode="decimal" min="1" step="0.01" placeholder="₹ 2450"></label>
+      </div>
+      <div class="qr-alt">
+        <label class="expect" for="shotsms"><span data-i="shot_sms">Paste the SMS / notification your bank sent (best check)</span>
+          <textarea id="shotsms" rows="2" maxlength="2000" placeholder="Rs.10.00 credited to A/c XX8808 … UPI Ref No 741859388059"></textarea></label>
+      </div>
+      <p class="privacy" data-i="shot_privacy">Scam trick: “I've paid, see the screenshot.” A screenshot is never proof — the money is only yours when your own bank app shows it.</p>
+    </div>
+
+    <div id="panel-qr" hidden>
+      <label id="qrdrop" class="drop" tabindex="0">
+        <input id="qrfile" type="file" accept="image/*" hidden>
+        <div class="drop-icon" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="6" y="6" width="14" height="14" rx="2"/><rect x="28" y="6" width="14" height="14" rx="2"/><rect x="6" y="28" width="14" height="14" rx="2"/><path d="M28 28h6v6h-6zM38 28h4M28 40h4M38 36v6h4" stroke-linecap="round"/></svg>
+        </div>
+        <strong data-i="qr_title">Upload a photo or screenshot of the QR</strong>
+        <span data-i="qr_sub">We read it for you — nothing is paid or opened</span>
+      </label>
+      <div class="qr-alt">
+        <button class="btn" id="cam-btn" type="button"><span aria-hidden="true">📷</span> <span data-i="cam">Scan with camera</span></button>
+        <form id="qrform" class="qrform">
+          <input id="qrtext" type="text" autocomplete="off" spellcheck="false" placeholder="upi://pay?pa=…  or  https://…" aria-label="Paste a UPI or payment link">
+          <button class="btn" type="submit" data-i="check">Check</button>
+        </form>
+      </div>
+      <div id="cam" class="cam" hidden>
+        <video id="video" playsinline muted></video>
+        <div class="cam-frame" aria-hidden="true"></div>
+        <button class="btn light" id="cam-stop" type="button" data-i="cam_stop">Stop camera</button>
+      </div>
+      <p class="privacy" data-i="qr_privacy">Scam trick: “scan this QR to RECEIVE money”. A UPI QR can only ever take money FROM you.</p>
+    </div>
+
+    <div id="panel-apk">
+    <label id="drop" class="drop" tabindex="0">
+      <input id="file" type="file" accept=".apk,.apks,.xapk,application/vnd.android.package-archive,application/zip" hidden>
+      <div class="drop-icon" aria-hidden="true">
+        <svg viewBox="0 0 48 48"><rect x="10" y="4" width="28" height="40" rx="5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M24 30V14m-6 6 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 38h10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </div>
+      <strong data-i="drop_title">Choose the .apk file</strong>
+      <span data-i="drop_sub">or drag it here · nothing is installed or run</span>
+    </label>
+    <p class="privacy" data-i="privacy">The file is analysed and then deleted. We keep only the report, identified by the file’s fingerprint (SHA-256).</p>
+    </div>
+
+    <div class="how">
+      <div><b>1</b><h3 data-i="how1">Unzip</h3><p data-i="how1p">An APK is just a ZIP. We open it without installing or running anything.</p></div>
+      <div><b>2</b><h3 data-i="how2">Read the manifest &amp; code</h3><p data-i="how2p">Permissions, hidden services, the code’s API calls, servers it contacts, and who signed it.</p></div>
+      <div><b>3</b><h3 data-i="how3">Match trojan patterns</h3><p data-i="how3p">Dangerous <em>combinations</em> — like SMS + Accessibility + Overlay — are the fingerprint of banking trojans.</p></div>
+    </div>
+    <p id="stats" class="stats"></p>
+  </section>
+
+  <!-- ============ PROGRESS ============ -->
+  <section id="progress" hidden>
+    <div class="card prog">
+      <div class="scanner" aria-hidden="true"><div class="beam"></div></div>
+      <h2 id="prog-file"></h2>
+      <ol class="steps">
+        <li data-step="0" data-i="st0">Uploading</li>
+        <li data-step="1" data-i="st1">Unzipping the app</li>
+        <li data-step="2" data-i="st2">Decoding AndroidManifest.xml</li>
+        <li data-step="3" data-i="st3">Scanning compiled code</li>
+        <li data-step="4" data-i="st4">Checking signature &amp; trojan patterns</li>
+      </ol>
+      <div class="bar"><i id="bar"></i></div>
+    </div>
+  </section>
+
+  <!-- ============ ERROR ============ -->
+  <section id="error" hidden>
+    <div class="card err">
+      <h2 data-i="err_t">We couldn’t analyse that file</h2>
+      <p id="err-msg"></p>
+      <button class="btn" data-act="again" data-i="again">Scan another file</button>
+    </div>
+  </section>
+
+  <!-- ============ RESULT ============ -->
+  <section id="result" hidden>
+    <div id="verdict" class="verdict">
+      <div class="v-top">
+        <div class="app-id">
+          <img id="app-icon" alt="" hidden>
+          <div>
+            <div id="app-name" class="app-name"></div>
+            <div id="app-pkg" class="mono dim"></div>
+          </div>
+        </div>
+        <div class="gauge" id="gauge" role="img">
+          <svg viewBox="0 0 120 70"><path d="M10 64a50 50 0 0 1 100 0" class="g-bg"/><path id="g-arc" d="M10 64a50 50 0 0 1 100 0" class="g-fg"/></svg>
+          <div class="g-num"><span id="score"></span><small>/100</small></div>
+          <div class="g-lbl" data-i="risk">risk</div>
+        </div>
+      </div>
+      <h2 id="headline"></h2>
+      <p id="advice"></p>
+      <p id="reported" class="reported" hidden></p>
+      <div class="actions">
+        <button class="btn light" data-act="speak"><span aria-hidden="true">🔊</span> <span data-i="speak">Read aloud</span></button>
+        <button class="btn light" data-act="share"><span aria-hidden="true">💬</span> <span data-i="share">Send to family on WhatsApp</span></button>
+        <button class="btn report" id="report-btn" data-act="report" hidden><span aria-hidden="true">🚨</span> <span data-i="report_btn">File a complaint</span></button>
+        <button class="btn ghost" data-act="again" data-i="again">Scan another file</button>
+      </div>
+      <p id="seen" class="seen" hidden></p>
+    </div>
+
+    <div id="guardcard" class="card guardcard" hidden></div>
+    <div id="msgcard" class="card msgcard" hidden></div>
+    <div id="qrcard" class="card qrcard" hidden></div>
+    <div id="shotcard" class="card shotcard" hidden></div>
+    <div id="paycard" class="card paycard" hidden></div>
+    <div id="votecard" class="card votecard" hidden></div>
+
+    <div class="card triad-card">
+      <h3 data-i="triad_t">The banking-trojan triad</h3>
+      <p class="dim" data-i="triad_p">Each alone can be legitimate. All three together is how OTP-stealing trojans work.</p>
+      <div class="triad">
+        <div class="tri" id="tri-sms"><span class="ti">✉️</span><b data-i="tri_sms">Reads SMS</b><small data-i="tri_sms_s">sees your OTPs</small></div>
+        <span class="plus">+</span>
+        <div class="tri" id="tri-acc"><span class="ti">👆</span><b data-i="tri_acc">Accessibility</b><small data-i="tri_acc_s">controls your screen</small></div>
+        <span class="plus">+</span>
+        <div class="tri" id="tri-ovl"><span class="ti">🪟</span><b data-i="tri_ovl">Draws over apps</b><small data-i="tri_ovl_s">fake login pages</small></div>
+      </div>
+    </div>
+
+    <div id="lure" class="card lure" hidden></div>
+
+    <h3 class="sec" data-i="findings_t">What we found</h3>
+    <div id="findings"></div>
+
+    <div id="tech">
+    <h3 class="sec" data-i="tech_t">Technical details</h3>
+    <div class="tabs" role="tablist">
+      <button class="on" data-tab="perms" data-i="t_perms">Permissions</button>
+      <button data-tab="code" data-i="t_code">Code</button>
+      <button data-tab="net" data-i="t_net">Network</button>
+      <button data-tab="sign" data-i="t_sign">Signature</button>
+      <button data-tab="file" data-i="t_file">File</button>
+    </div>
+    <div id="tab-body" class="card tabbody"></div>
+    </div>
+
+    <p class="limits dim" id="limits"></p>
+  </section>
+  <!-- ============ REPORT FORM ============ -->
+  <section id="report" hidden>
+    <button class="back" type="button" data-act="back-result">← <span data-r="back">Back to the scan result</span></button>
+    <div class="card rform-card">
+      <h2 data-r="form_t">Report this scam</h2>
+      <p class="dim" data-r="form_p">Answer what you can. We fill in the complaint, the 1930 call script and an evidence PDF from your scan, so you don't have to explain everything from scratch.</p>
+      <div id="rsum" class="rsum"></div>
+      <form id="rform" novalidate>
+        <fieldset class="seg">
+          <legend data-r="q_lost">Did you lose money?</legend>
+          <label><input type="radio" name="lost" id="lost-yes" value="yes"> <span data-r="yes_lost">Yes, money was taken</span></label>
+          <label><input type="radio" name="lost" id="lost-no" value="no" checked> <span data-r="no_lost">No, I'm reporting the attempt</span></label>
+        </fieldset>
+
+        <div id="money-fields" class="grid2" hidden>
+          <label class="f"><span data-r="amount">Amount lost (₹)</span><input id="f-amount" type="number" inputmode="decimal" min="1" step="0.01" placeholder="4999"></label>
+          <label class="f"><span data-r="method">Paid using</span>
+            <select id="f-method"><option value="upi">UPI</option><option value="card" data-r="m_card">Debit / credit card</option><option value="netbanking" data-r="m_nb">Net banking</option><option value="wallet" data-r="m_wallet">Wallet</option><option value="other" data-r="m_other">Other</option></select></label>
+          <label class="f"><span data-r="txn">Transaction ID / UTR</span><input id="f-txn" type="text" inputmode="numeric" autocomplete="off" placeholder="426912345678"><small data-r="txn_h">12-digit number in your bank SMS or UPI app. Separate several with commas.</small></label>
+          <label class="f"><span data-r="bank">Your bank</span><input id="f-bank" type="text" placeholder="SBI"></label>
+          <label class="f wide"><span data-r="paid_to">Money went to (UPI ID or account)</span><input id="f-paidto" type="text" autocomplete="off" placeholder="name@ybl"></label>
+        </div>
+
+        <div class="grid2">
+          <label class="f"><span data-r="when">When did it happen?</span><input id="f-when" type="datetime-local"></label>
+          <label class="f"><span data-r="channel">How did it reach you?</span>
+            <select id="f-channel"><option value="whatsapp">WhatsApp</option><option value="sms">SMS</option><option value="call" data-r="c_call">Phone call</option><option value="social" data-r="c_social">Social media</option><option value="website" data-r="c_web">Website / ad</option><option value="email">Email</option><option value="in_person" data-r="c_print">Printed QR</option><option value="other" data-r="c_other">Other</option></select></label>
+          <label class="f"><span data-r="sender">Sender's number or name</span><input id="f-sender" type="text" autocomplete="off" placeholder="+91 98xxxxxxxx"></label>
+          <fieldset class="f seg small" id="installed-q" hidden>
+            <legend data-r="installed">Did you install the app?</legend>
+            <label><input type="radio" name="inst" value="yes"> <span data-r="yes">Yes</span></label>
+            <label><input type="radio" name="inst" value="no" checked> <span data-r="no">No</span></label>
+          </fieldset>
+          <label class="f wide"><span data-r="desc">Anything else? (what they said, what you did)</span><textarea id="f-desc" rows="3" maxlength="2000"></textarea></label>
+        </div>
+
+        <details class="you">
+          <summary data-r="you_t">Add your name and contact to the PDF (optional)</summary>
+          <div class="grid2">
+            <label class="f"><span data-r="name">Your name</span><input id="f-name" type="text" autocomplete="name"></label>
+            <label class="f"><span data-r="mobile">Your mobile</span><input id="f-mobile" type="tel" autocomplete="tel"></label>
+            <label class="f wide"><span data-r="email">Your email</span><input id="f-email" type="email" autocomplete="email"></label>
+          </div>
+        </details>
+        <p class="dim small" data-r="privacy">Your answers are kept for 30 days behind a private link only you get, then deleted. You can delete them any time.</p>
+        <p id="rerr" class="rerr" role="alert" hidden></p>
+        <button class="btn big" type="submit" id="rsubmit" data-r="submit">Prepare my complaint</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ============ COMPLAINT ============ -->
+  <section id="complaint" hidden></section>
+</main>
+
+<section id="android" class="android">
+  <div class="android-in">
+    <div>
+      <h2 data-i="and_t">PayGuard for Android</h2>
+      <p class="dim" data-i="and_p">Scan any shop's QR with PayGuard. Safe payments go straight to your UPI app; scams are stopped before you pay. You can also make PayGuard open every UPI link first.</p>
+      <div class="and-acts">
+        <a class="btn" id="apk-dl" href="/download/payguard.apk" hidden><span aria-hidden="true">⬇</span> <span data-i="and_dl">Download the app (APK)</span></a>
+        <span class="dim small" id="apk-missing" data-i="and_missing">The app hasn't been uploaded to this server yet.</span>
+      </div>
+    </div>
+    <figure class="connect">
+      <img src="/api/app/connect.png" alt="QR code that connects the PayGuard app to this server" width="160" height="160" loading="lazy">
+      <figcaption data-i="and_qr">In the app: Settings → Scan connect code</figcaption>
+    </figure>
+  </div>
+</section>
+
+<footer>
+  <p><span data-i="foot1">Already installed a suspicious app or lost money?</span> <a href="tel:1930"><b>1930</b></a> · <a href="https://cybercrime.gov.in" target="_blank" rel="noopener">cybercrime.gov.in</a></p>
+  <p class="dim">APK X-Ray · static analysis, the app is never run · <a href="/api/health">API</a></p>
+</footer>
+
+<div id="toast" class="toast" hidden></div>
+<div id="ios-sheet" class="ios-sheet" hidden role="dialog" aria-modal="true"><div><p></p><button class="btn" type="button">OK</button></div></div>
+<script src="/device.js"></script>
+<script src="/app.js"></script>
+<script src="/qr.js"></script>
+<script src="/shot.js"></script>
+<script src="/report.js"></script>
+<script src="/vote.js"></script>
+<script src="/pay.js"></script>
+<script src="/msg.js"></script>
+<script src="/pwa.js"></script>
+</body>
+</html>

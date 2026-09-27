@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="hello">Enter your Card Number, Expiry Date and CVV to reschedule delivery. ATM PIN required for verification.</string>
+    <string name="app_name">Courier Delivery Update</string>
+</resources>

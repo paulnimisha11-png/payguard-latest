@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Report Review — PayGuard</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  .adm { width: 100%; border-collapse: collapse; font-size: .88rem; }
+  .adm th, .adm td { padding: 8px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .adm td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .adm .acts { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pill { font-size: .75rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--bg); }
+  .pill.pub { background: var(--crit-soft); color: var(--crit); }
+  .wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<main style="max-width:1100px">
+  <div class="page-head"><h1>Report review</h1>
+    <p>Entries reach the public trends page after enough independent reports. Approve real scams, hide doubtful ones, or clear genuine shops/people (which also removes the warning from their scans).</p></div>
+  <form class="card row" id="tok-form">
+    <input class="field" id="tok" type="password" placeholder="Admin token (APKXRAY_ADMIN_TOKEN)" autocomplete="current-password">
+    <button class="btn" type="submit">Load</button>
+  </form>
+  <p id="msg" class="small"></p>
+  <div class="card wrap" style="margin-top:12px"><table class="adm"><thead><tr><th>Kind</th><th>Value</th><th>Reports</th><th>Lost money</th><th>Disputes</th><th>Networks</th><th>Status</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+</main>
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  let tok = sessionStorage.getItem("pg_admin") || "";
+  $("#tok").value = tok;
+  async function load() {
+    const res = await fetch("/api/admin/review", { headers: { "x-admin-token": tok } });
+    const d = await res.json();
+    if (!res.ok) { $("#msg").textContent = d.error; return; }
+    $("#msg").textContent = `${d.entries.length} reported entries · public after ${d.public_min} independent reports`;
+    $("#rows").innerHTML = d.entries.map((e) => `<tr><td>${esc(e.kind)}</td><td class="mono">${esc(e.value)}</td><td class="n">${e.reports}</td>
+      <td class="n">${e.got_me}</td><td class="n">${e.disputes}</td><td class="n">${e.networks}</td>
+      <td>${e.public ? '<span class="pill pub">public</span>' : '<span class="pill">not public</span>'} ${e.status ? `<span class="pill">${esc(e.status)}</span>` : ""}${e.demo ? ' <span class="pill">demo</span>' : ""}</td>
+      <td class="acts">${["approved", "hidden", "cleared", ""].map((s) => `<button class="btn small" data-k="${esc(e.kind)}" data-v="${esc(e.value)}" data-s="${s}">${s || "reset"}</button>`).join("")}</td></tr>`).join("");
+  }
+  $("#tok-form").addEventListener("submit", (e) => { e.preventDefault(); tok = $("#tok").value; sessionStorage.setItem("pg_admin", tok); load(); });
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-s]"); if (!b) return;
+    const res = await fetch("/api/admin/moderate", { method: "POST", headers: { "content-type": "application/json", "x-admin-token": tok },
+      body: JSON.stringify({ kind: b.dataset.k, value: b.dataset.v, status: b.dataset.s || null }) });
+    if (!res.ok) { $("#msg").textContent = (await res.json()).error; return; }
+    load();
+  });
+  if (tok) load();
+})();
+</script>
+</body>
+</html>

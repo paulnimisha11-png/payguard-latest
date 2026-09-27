@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Scam Trends — PayGuard</title>
+<meta name="description" content="Live scam trends from PayGuard users: which scams are rising and which UPI IDs, numbers and websites people report.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z' fill='%234f46e5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&family=Noto+Sans+Kannada:wght@400;600;700&family=Noto+Sans+Tamil:wght@400;600;700&family=Noto+Sans+Telugu:wght@400;600;700&family=Noto+Sans+Bengali:wght@400;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="PayGuard">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z" fill="currentColor"/><path d="M9.5 16.5h3l2-4 3 8 2-4h3" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>PayGuard</span>
+  </a>
+  <div class="top-r">
+    <nav class="topnav" aria-label="Sections">
+      <a href="/" data-t="nav_check">Check</a>
+      <a href="/trends" class="on" data-t="nav_trends">Trends</a>
+      <a href="/family" id="nav-family"><span data-t="nav_family">Family</span><b id="fam-badge" class="badge" hidden></b></a>
+    </nav>
+    <div class="lang" role="group" aria-label="Language">
+      <button data-lang="en" class="on">EN</button><button data-lang="hi">हिंदी</button><button data-lang="kn">ಕನ್ನಡ</button><button data-lang="ta">தமிழ்</button><button data-lang="te">తెలుగు</button><button data-lang="mr">मराठी</button><button data-lang="bn">বাংলা</button>
+    </div>
+  </div>
+</header>
+
+<main id="trends">
+  <div class="page-head">
+    <h1 data-t="title">Scam trends</h1>
+    <p data-t="sub">What PayGuard users are checking and reporting right now. No names, messages or screenshots are ever shown here.</p>
+  </div>
+  <p id="demo" class="banner" hidden data-t="demo">This page currently includes demo data for a presentation.</p>
+  <p id="load-err" class="banner" hidden></p>
+
+  <div class="kpis" id="kpis"></div>
+
+  <h2 class="sec-t" data-t="chart_t">Scams caught per day</h2>
+  <div class="card">
+    <p class="dim small" data-t="chart_sub">Dangerous or suspicious results in the last 14 days. Hover or tap a bar for details.</p>
+    <div class="chart" id="chart"></div>
+    <details class="table-view"><summary data-t="table">Show as table</summary><div id="chart-table"></div></details>
+  </div>
+
+  <div id="rising-wrap" hidden>
+    <h2 class="sec-t" data-t="rising_t">Rising this week</h2>
+    <div class="rising" id="rising"></div>
+  </div>
+
+  <h2 class="sec-t" data-t="types_t">Scam types this week</h2>
+  <div class="card"><ul class="types" id="types"></ul></div>
+
+  <h2 class="sec-t" data-t="top_t">Most reported</h2>
+  <p class="dim small" id="rule"></p>
+  <div class="grid two" id="top"></div>
+
+  <h2 class="sec-t" data-t="lookup_t">Were you given a UPI ID, number or website?</h2>
+  <form class="card" id="lookup">
+    <div class="row">
+      <input class="field" id="q" autocomplete="off" spellcheck="false" placeholder="name@ybl · 98xxxxxxxx · example.com" aria-label="UPI ID, phone number or website">
+      <button class="btn" type="submit" data-t="lookup_btn">Check</button>
+    </div>
+    <p class="lookup-res" id="lookup-res" hidden></p>
+  </form>
+  <p class="privacy" id="updated"></p>
+</main>
+
+<script src="/device.js"></script>
+<script src="/trends.js"></script>
+<script src="/pwa.js"></script>
+</body>
+</html>
