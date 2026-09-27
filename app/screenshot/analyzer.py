@@ -37,10 +37,16 @@ import statistics
 import numpy as np
 from PIL import Image, ImageChops, ImageDraw, ImageOps
 
-from ..analyzer.rules import SEVERITY_ORDER, T, Finding
+# Limit CPU threads to prevent thread contention and excessive memory in cloud container environments
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
 
-# OCR engines. RapidOCR (pip install rapidocr_onnxruntime) ships its models inside the package, so it works on any
-# machine with just pip; Tesseract is used as a fallback when it is installed on the system.
+# OCR engines.
+# Tesseract is preferred when available: it executes in ~1-2 seconds and uses only ~30MB RAM.
+# On cloud/container platforms (e.g. Render free tier with 512MB RAM and 0.5 CPU quota),
+# this is critical to avoid 504 timeouts and OOM (Out Of Memory) container crashes.
+# RapidOCR (pip install rapidocr_onnxruntime) is used as a fallback when Tesseract is not installed on the system.
 _RAPID = None
 try:
     from rapidocr_onnxruntime import RapidOCR as _RapidOCR
@@ -57,16 +63,27 @@ try:
     HAS_TESS = True
 except Exception:
     HAS_TESS = False
-HAS_OCR = HAS_RAPID or HAS_TESS
-OCR_ENGINE = "rapidocr" if HAS_RAPID else "tesseract" if HAS_TESS else None
+
+HAS_OCR = HAS_TESS or HAS_RAPID
+
+_pref = os.environ.get("OCR_ENGINE", os.environ.get("PAYGUARD_OCR_ENGINE", "")).lower()
+if _pref == "rapidocr" and HAS_RAPID:
+    OCR_ENGINE = "rapidocr"
+elif _pref == "tesseract" and HAS_TESS:
+    OCR_ENGINE = "tesseract"
+else:
+    OCR_ENGINE = "tesseract" if HAS_TESS else "rapidocr" if HAS_RAPID else None
 
 
 def _rapid():
     global _RAPID
     if _RAPID is None:
+        os.environ["OMP_NUM_THREADS"] = "1"
+        os.environ["OPENBLAS_NUM_THREADS"] = "1"
         # screenshots are always upright; the 180° classifier sometimes flips short tokens ("₹10" -> "0L2")
         _RAPID = _RapidOCR(use_angle_cls=False)
     return _RAPID
+
 
 IST = dt.timezone(dt.timedelta(hours=5, minutes=30))
 MAX_PIXELS = 12_000_000
@@ -278,33 +295,35 @@ def _ocr_rapid(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
         b = (int(min(xs) / scale), int(min(ys) / scale), int(max(xs) / scale), int(max(ys) / scale))
         # "raw" keeps the exact characters (needed to pair glyphs with characters); "text" is readable for the rules
         words.append({"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b, "h": (b[3] - b[1]), "conf": float(score) * 100})
-    # Receipts right-align the amount next to the payee (PhonePe "MITHU_SINGH ....... ₹10"). The detector often
-    # skips that short token, and it is exactly the one an editor changes, so read the right-hand column again.
-    try:
-        W = ga.shape[1]
-        x0 = int(W * 0.6)
-        col = ga[:, x0:]
-        pad = 40
-        col = np.pad(col, ((0, 0), (pad, pad)), constant_values=int(np.median(col)))
-        res2, _ = _rapid()(np.stack([col, col, col], axis=2))
-        for box, txt, score in res2 or []:
-            txt = _norm_ocr(txt)
-            if not txt or float(score) < 0.45 or not re.search(r"\d", txt):
-                continue
-            xs = [p[0] - pad + x0 for p in box]
-            ys = [p[1] for p in box]
-            b = (int(max(min(xs), x0) / scale), int(min(ys) / scale), int(max(xs) / scale), int(max(ys) / scale))
-            cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
-            if any(w["box"][0] - 2 <= cx <= w["box"][2] + 2 and w["box"][1] - 2 <= cy <= w["box"][3] + 2 for w in words):
-                continue  # already read in the first pass
-            words.append({"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b, "h": (b[3] - b[1]),
-                          "conf": float(score) * 100, "second_pass": True})
-    except Exception:
-        pass
-    try:
-        words += _read_unread_right(ga, words, scale)
-    except Exception:
-        pass
+    # Receipts right-align the amount next to the payee (PhonePe "MITHU_SINGH ....... ₹10").
+    # If the first pass already found the amount or reference number, skip expensive second and third passes.
+    has_key_info = any(re.search(r"₹|rs\.?|inr", w["text"], re.I) or re.search(r"\b\d{12}\b", w["text"]) for w in words)
+    if not has_key_info:
+        try:
+            W = ga.shape[1]
+            x0 = int(W * 0.6)
+            col = ga[:, x0:]
+            pad = 40
+            col = np.pad(col, ((0, 0), (pad, pad)), constant_values=int(np.median(col)))
+            res2, _ = _rapid()(np.stack([col, col, col], axis=2))
+            for box, txt, score in res2 or []:
+                txt = _norm_ocr(txt)
+                if not txt or float(score) < 0.45 or not re.search(r"\d", txt):
+                    continue
+                xs = [p[0] - pad + x0 for p in box]
+                ys = [p[1] for p in box]
+                b = (int(max(min(xs), x0) / scale), int(min(ys) / scale), int(max(xs) / scale), int(max(ys) / scale))
+                cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+                if any(w["box"][0] - 2 <= cx <= w["box"][2] + 2 and w["box"][1] - 2 <= cy <= w["box"][3] + 2 for w in words):
+                    continue  # already read in the first pass
+                words.append({"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b, "h": (b[3] - b[1]),
+                              "conf": float(score) * 100, "second_pass": True})
+        except Exception:
+            pass
+        try:
+            words += _read_unread_right(ga, words, scale)
+        except Exception:
+            pass
     return _group_lines(words), g, scale
 
 
@@ -315,6 +334,8 @@ def _read_unread_right(ga: np.ndarray, words: list[dict], scale: float) -> list[
     H, W = ga.shape[:2]
     out, done = [], []
     for w in sorted(words, key=lambda w: w["box"][1]):
+        if len(out) >= 3:
+            break
         y0, y1 = int(w["box"][1] * scale), int(w["box"][3] * scale)
         if y1 - y0 < 12 or y1 > H * 0.75 or any(abs(y0 - a) < 10 and abs(y1 - b) < 10 for a, b in done):
             continue
@@ -357,13 +378,23 @@ def _read_unread_right(ga: np.ndarray, words: list[dict], scale: float) -> list[
 
 
 def _ocr(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
+    if OCR_ENGINE == "tesseract" and HAS_TESS:
+        try:
+            return _ocr_tess(im)
+        except Exception:
+            if HAS_RAPID:
+                return _ocr_rapid(im)
+            raise
     if HAS_RAPID:
         try:
             return _ocr_rapid(im)
         except Exception:
-            if not HAS_TESS:
-                raise
-    return _ocr_tess(im)
+            if HAS_TESS:
+                return _ocr_tess(im)
+            raise
+    if HAS_TESS:
+        return _ocr_tess(im)
+    raise RuntimeError("No OCR engine available")
 
 
 def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
@@ -381,13 +412,14 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
 
     for psm in (11, 6):
         d = pytesseract.image_to_data(g, config=f"--psm {psm}", output_type=pytesseract.Output.DICT)
-        for i, txt in enumerate(d["text"]):
-            txt = (txt or "").strip()
+        for i, raw_txt in enumerate(d["text"]):
+            txt = _norm_ocr((raw_txt or "").strip())
             if not txt or float(d["conf"][i]) < 30:
                 continue
             x, y, bw, bh = d["left"][i], d["top"][i], d["width"][i], d["height"][i]
-            w = {"text": txt, "box": (int(x / scale), int(y / scale), int((x + bw) / scale), int((y + bh) / scale)),
-                 "h": bh / scale, "conf": float(d["conf"][i])}
+            b = (int(x / scale), int(y / scale), int((x + bw) / scale), int((y + bh) / scale))
+            w = {"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b,
+                 "h": (b[3] - b[1]), "conf": float(d["conf"][i])}
             clash = next((k for k, o in enumerate(words) if iou(o["box"], w["box"]) > 0.3), None)
             if clash is None:
                 words.append(w)
@@ -402,13 +434,14 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
         if (band < 128).mean() > 0.5:
             band = 255 - band
         d = pytesseract.image_to_data(Image.fromarray(band), config="--psm 6", output_type=pytesseract.Output.DICT)
-        for i, txt in enumerate(d["text"]):
-            txt = (txt or "").strip()
+        for i, raw_txt in enumerate(d["text"]):
+            txt = _norm_ocr((raw_txt or "").strip())
             if not txt or float(d["conf"][i]) < 40:
                 continue
             x, y, bw, bh = d["left"][i], d["top"][i], d["width"][i], d["height"][i]
-            w = {"text": txt, "box": (int(x / scale), int(y / scale), int((x + bw) / scale), int((y + bh) / scale)),
-                 "h": bh / scale, "conf": float(d["conf"][i])}
+            b = (int(x / scale), int(y / scale), int((x + bw) / scale), int((y + bh) / scale))
+            w = {"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b,
+                 "h": (b[3] - b[1]), "conf": float(d["conf"][i])}
             clash = next((k for k, o in enumerate(words) if iou(o["box"], w["box"]) > 0.3), None)
             if clash is None:
                 words.append(w)
@@ -418,6 +451,20 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
         pass
 
     return _group_lines(words), g, scale
+
+
+def warmup_ocr():
+    """Pre-initialize the active OCR engine with a small synthetic image to avoid cold-start delays on requests."""
+    if not HAS_OCR:
+        return
+    try:
+        dummy = Image.new("RGB", (120, 60), color="white")
+        d = ImageDraw.Draw(dummy)
+        d.text((10, 20), "Rs 100", fill="black")
+        _ocr(dummy)
+    except Exception:
+        pass
+
 
 
 def _segment_glyphs(a: np.ndarray):
@@ -1170,5 +1217,6 @@ def _annotate(im: Image.Image, findings: list[dict], fields: dict, heat) -> str:
     if base.width > 720:
         base = base.resize((720, int(base.height * 720 / base.width)), Image.LANCZOS)
     buf = io.BytesIO()
-    base.save(buf, "PNG", optimize=True)
+    base.save(buf, "PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+

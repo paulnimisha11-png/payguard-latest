@@ -58,12 +58,19 @@ app = FastAPI(title="APK X-Ray", version=ENGINE_VERSION)
 
 @app.on_event("startup")
 async def _startup_checks():
-    from .screenshot.analyzer import HAS_OCR, OCR_ENGINE
+    from .screenshot.analyzer import HAS_OCR, OCR_ENGINE, warmup_ocr
     if not HAS_OCR:
         print("\n  WARNING: no OCR engine found - payment screenshot checks will be incomplete."
-              "\n  Fix: pip install -r requirements.txt   (installs rapidocr_onnxruntime)\n", flush=True)
+              "\n  Fix: apt-get install tesseract-ocr or pip install rapidocr_onnxruntime\n", flush=True)
     else:
         print(f"  Screenshot OCR engine: {OCR_ENGINE}", flush=True)
+        loop = asyncio.get_running_loop()
+        try:
+            await loop.run_in_executor(None, warmup_ocr)
+            print("  Screenshot OCR engine warmed up successfully.", flush=True)
+        except Exception as e:
+            print(f"  Screenshot OCR warmup skipped: {e}", flush=True)
+
 pool = ProcessPoolExecutor(max_workers=int(os.environ.get("APKXRAY_WORKERS", "2")))
 _hits: dict[str, deque] = defaultdict(deque)
 
@@ -276,8 +283,9 @@ async def screenshot(request: Request, file: UploadFile = File(...), expected_am
     name = os.path.basename(file.filename or "screenshot.png")[:200]
     loop = asyncio.get_running_loop()
     try:
-        rep = await asyncio.wait_for(loop.run_in_executor(None, lambda: analyze_screenshot(data, name, exp, store.utr_seen_elsewhere, store.similar_receipts, bank_sms[:2000] or None)), 60)
+        rep = await asyncio.wait_for(loop.run_in_executor(None, lambda: analyze_screenshot(data, name, exp, store.utr_seen_elsewhere, store.similar_receipts, bank_sms[:2000] or None)), 90)
     except ValueError as e:
+
         raise HTTPException(422, str(e))
     except asyncio.TimeoutError:
         raise HTTPException(504, "Checking the image took too long.")

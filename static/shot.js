@@ -5,11 +5,12 @@
   const esc = A.esc;
 
   async function prepImage(file) {
-    if (!file || !file.type.startsWith("image/") || file.size < 2 * 1024 * 1024) return file;
+    if (!file || !file.type.startsWith("image/")) return file;
     try {
       const bmp = await createImageBitmap(file);
       const maxDim = 2048;
       if (bmp.width <= maxDim && bmp.height <= maxDim) return file;
+
       const scale = Math.min(maxDim / bmp.width, maxDim / bmp.height);
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(bmp.width * scale);

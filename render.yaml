@@ -8,6 +8,11 @@ services:
     envVars:
       - key: APKXRAY_RATE_PER_MIN
         value: "60"
+      - key: OCR_ENGINE
+        value: "tesseract"
+      - key: OMP_NUM_THREADS
+        value: "1"
       # After the Android build runs on GitHub, point the website's "Download the app" button at it:
       # - key: APKXRAY_APP_APK_URL
       #   value: https://github.com/<you>/<repo>/releases/download/android-latest/PayGuard.apk
+
