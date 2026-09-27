@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends tesseract-ocr l
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 COPY static ./static
-COPY downloads ./downloads
+RUN mkdir -p ./downloads
 ENV APKXRAY_DB=/data/apkxray.db PORT=8000
 VOLUME /data
 EXPOSE 8000
