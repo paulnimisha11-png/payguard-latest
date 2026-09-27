@@ -716,6 +716,67 @@ async def fam_test(request: Request):
     return {"ok": True}
 
 
+_tts_cache: dict[tuple[str, str], bytes] = {}
+_tts_lock = asyncio.Lock()
+
+
+@app.get("/api/tts")
+async def tts(text: str, lang: str = "en"):
+    """Natural pronunciation text-to-speech for Indian languages (hi, kn, ta, te, mr, bn, en)."""
+    text = (text or "").strip()[:600]
+    if not text:
+        raise HTTPException(400, "Text is required.")
+    lang = lang.lower()[:5]
+    tl = {"en": "en-IN", "hi": "hi", "kn": "kn", "ta": "ta", "te": "te", "mr": "mr", "bn": "bn"}.get(lang, "en-IN")
+    cache_key = (tl, text)
+    async with _tts_lock:
+        cached = _tts_cache.get(cache_key)
+    if cached:
+        return Response(content=cached, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+    words = text.split()
+    chunks, cur, cur_len = [], [], 0
+    for w in words:
+        if cur_len + len(w) + 1 > 180:
+            if cur:
+                chunks.append(" ".join(cur))
+            cur = [w]
+            cur_len = len(w)
+        else:
+            cur.append(w)
+            cur_len += len(w) + 1
+    if cur:
+        chunks.append(" ".join(cur))
+    if not chunks:
+        chunks = [text[:180]]
+
+    out = bytearray()
+    import certifi
+    import ssl
+    import urllib.parse
+    ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+    try:
+        async with httpx.AsyncClient(verify=ssl_ctx, timeout=8.0) as client:
+            for c in chunks:
+                url = f"https://translate.google.com/translate_tts?ie=UTF-8&q={urllib.parse.quote(c)}&tl={tl}&client=tw-ob"
+                r = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
+                if r.status_code == 200 and r.content:
+                    out.extend(r.content)
+    except Exception as exc:
+        raise HTTPException(502, f"TTS service unavailable: {exc}")
+
+    if not out:
+        raise HTTPException(502, "Failed to generate audio.")
+
+    audio_bytes = bytes(out)
+    async with _tts_lock:
+        if len(_tts_cache) > 300:
+            _tts_cache.clear()
+        _tts_cache[cache_key] = audio_bytes
+
+    return Response(content=audio_bytes, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_err(_, exc: RequestValidationError):
     msgs = []

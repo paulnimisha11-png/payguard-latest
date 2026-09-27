@@ -25,7 +25,7 @@
       how3: "ट्रोजन पैटर्न मिलाना", how3p: "खतरनाक <em>जोड़ियाँ</em> — जैसे SMS + एक्सेसिबिलिटी + ओवरले — बैंकिंग ट्रोजन की पहचान हैं।",
       st0: "अपलोड हो रहा है", st1: "ऐप खोला जा रहा है", st2: "AndroidManifest.xml पढ़ा जा रहा है", st3: "कोड की जाँच", st4: "हस्ताक्षर और ट्रोजन पैटर्न की जाँच",
       err_t: "हम इस फ़ाइल की जाँच नहीं कर पाए", again: "दूसरी फ़ाइल जाँचें", risk: "जोखिम",
-      speak: "सुनें", share: "परिवार को WhatsApp पर भेजें",
+      speak: "सुनें", stop: "रोकें", share: "परिवार को WhatsApp पर भेजें",
       triad_t: "बैंकिंग ट्रोजन की तिकड़ी", triad_p: "अकेले-अकेले ये जायज़ हो सकते हैं। तीनों एक साथ — यही OTP चोर ट्रोजन का तरीका है।",
       tri_sms: "SMS पढ़ता है", tri_sms_s: "आपके OTP देखता है", tri_acc: "एक्सेसिबिलिटी", tri_acc_s: "आपकी स्क्रीन चलाता है", tri_ovl: "ऐप्स के ऊपर दिखता है", tri_ovl_s: "नकली लॉगिन पेज",
       findings_t: "हमें क्या मिला", tech_t: "तकनीकी जानकारी",
@@ -54,7 +54,7 @@
       how3: "ಟ್ರೋಜನ್ ಮಾದರಿ ಹೊಂದಿಸುವುದು", how3p: "ಅಪಾಯಕಾರಿ <em>ಸಂಯೋಜನೆಗಳು</em> — SMS + ಆಕ್ಸೆಸಿಬಿಲಿಟಿ + ಓವರ್‌ಲೇ — ಬ್ಯಾಂಕಿಂಗ್ ಟ್ರೋಜನ್‌ನ ಗುರುತು.",
       st0: "ಅಪ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ", st1: "ಆ್ಯಪ್ ತೆರೆಯಲಾಗುತ್ತಿದೆ", st2: "AndroidManifest.xml ಓದಲಾಗುತ್ತಿದೆ", st3: "ಕೋಡ್ ಪರಿಶೀಲನೆ", st4: "ಸಹಿ ಮತ್ತು ಟ್ರೋಜನ್ ಮಾದರಿ ಪರಿಶೀಲನೆ",
       err_t: "ಈ ಫೈಲ್ ಪರಿಶೀಲಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ", again: "ಇನ್ನೊಂದು ಫೈಲ್ ಪರಿಶೀಲಿಸಿ", risk: "ಅಪಾಯ",
-      speak: "ಕೇಳಿ", share: "ಕುಟುಂಬಕ್ಕೆ WhatsApp ನಲ್ಲಿ ಕಳುಹಿಸಿ",
+      speak: "ಕೇಳಿ", stop: "ನಿಲ್ಲಿಸಿ", share: "ಕುಟುಂಬಕ್ಕೆ WhatsApp ನಲ್ಲಿ ಕಳುಹಿಸಿ",
       triad_t: "ಬ್ಯಾಂಕಿಂಗ್ ಟ್ರೋಜನ್ ತ್ರಿವಳಿ", triad_p: "ಒಂದೊಂದಾಗಿ ಇವು ನ್ಯಾಯಸಮ್ಮತವಾಗಿರಬಹುದು. ಮೂರೂ ಒಟ್ಟಿಗೆ — ಇದೇ OTP ಕಳ್ಳ ಟ್ರೋಜನ್‌ಗಳ ವಿಧಾನ.",
       tri_sms: "SMS ಓದುತ್ತದೆ", tri_sms_s: "ನಿಮ್ಮ OTP ನೋಡುತ್ತದೆ", tri_acc: "ಆಕ್ಸೆಸಿಬಿಲಿಟಿ", tri_acc_s: "ನಿಮ್ಮ ಪರದೆ ನಿಯಂತ್ರಿಸುತ್ತದೆ", tri_ovl: "ಆ್ಯಪ್‌ಗಳ ಮೇಲೆ ಕಾಣುತ್ತದೆ", tri_ovl_s: "ನಕಲಿ ಲಾಗಿನ್ ಪುಟ",
       findings_t: "ನಮಗೆ ಏನು ಸಿಕ್ಕಿತು", tech_t: "ತಾಂತ್ರಿಕ ವಿವರಗಳು",
@@ -83,7 +83,7 @@
       how3: "ட்ரோஜன் முறைகளைக் கண்டறிதல்", how3p: "ஆபத்தான <em>கூட்டணி</em> — SMS + அக்சசிபிலிட்டி + மேலடுக்கு — பேங்கிங் ட்ரோஜனின் அடையாளம்.",
       st0: "பதிவேற்றப்படுகிறது", st1: "ஆப் திறக்கப்படுகிறது", st2: "AndroidManifest.xml படிக்கப்படுகிறது", st3: "குறியீடு ஆய்வு", st4: "கையொப்பம் மற்றும் ட்ரோஜன் முறை சரிபார்ப்பு",
       err_t: "இந்தக் கோப்பைச் சரிபார்க்க முடியவில்லை", again: "மற்றொரு கோப்பைச் சோதிக்கவும்", risk: "ஆபத்து",
-      speak: "கேளுங்கள்", share: "குடும்பத்திற்கு WhatsApp-ல் பகிரவும்",
+      speak: "கேளுங்கள்", stop: "நிறுத்து", share: "குடும்பத்திற்கு WhatsApp-ல் பகிரவும்",
       triad_t: "பேங்கிங் ட்ரோஜனின் மும்மை", triad_p: "தனித்தனியாக இவை வழக்கமாக இருக்கலாம். மூன்றும் ஒன்றாக — OTP திருடும் ட்ரோஜன்களின் தந்திரம் இதுவே.",
       tri_sms: "SMS படிக்கிறது", tri_sms_s: "உங்கள் OTP ஐப் பார்க்கிறது", tri_acc: "அக்சசிபிலிட்டி", tri_acc_s: "திரையைக் கட்டுப்படுத்துகிறது", tri_ovl: "ஆப்ஸ்களின் மேல் திரையிடுகிறது", tri_ovl_s: "போலி உள்நுழைவுப் பக்கம்",
       findings_t: "கண்டறியப்பட்டவை", tech_t: "தொழில்நுட்ப விவரங்கள்",
@@ -112,7 +112,7 @@
       how3: "ట్రోజన్ నమూనాలను గుర్తించడం", how3p: "ప్రమాదకరమైన <em>కలయికలు</em> — SMS + యాక్సెసిబిలిటీ + ఓవర్‌లే — బ్యాంకింగ్ ట్రోజన్ లక్షణాలు.",
       st0: "అప్‌లోడ్ అవుతోంది", st1: "యాప్ తెరవబడుతోంది", st2: "AndroidManifest.xml చదవబడుతోంది", st3: "కోడ్ తనిఖీ", st4: "సంతకం మరియు ట్రోజన్ నమూనాల తనిఖీ",
       err_t: "ఈ ఫైల్‌ను తనిఖీ చేయలేకపోయాము", again: "మరొక ఫైల్‌ను తనిఖీ చేయండి", risk: "ప్రమాదం",
-      speak: "వినండి", share: "కుటుంబానికి WhatsAppలో పంపండి",
+      speak: "వినండి", stop: "ఆపండి", share: "కుటుంబానికి WhatsAppలో పంపండి",
       triad_t: "బ్యాంకింగ్ ట్రోజన్ త్రయం", triad_p: "విడిగా ఇవి మామూలే కావచ్చు. మూడూ కలిసి ఉంటే — OTP దొంగిలించే ట్రోజన్ పద్ధతి ఇదే.",
       tri_sms: "SMS చదువుతుంది", tri_sms_s: "మీ OTPలను చూస్తుంది", tri_acc: "యాక్సెసిబిలిటీ", tri_acc_s: "మీ స్క్రీన్‌ను నియంత్రిస్తుంది", tri_ovl: "యాప్‌లపై కనిపిస్తుంది", tri_ovl_s: "నకిలీ లాగిన్ పేజీ",
       findings_t: "కనుగొన్న వివరాలు", tech_t: "సాంకేతిక వివరాలు",
@@ -141,7 +141,7 @@
       how3: "ट्रोजन पॅटर्न जुळवणे", how3p: "धोकादायक <em>जोड्या</em> — जसे SMS + ॲक्सेसिबिलिटी + ओव्हरले — बँकिंग ट्रोजनची ओळख आहेत.",
       st0: "अपलोड होत आहे", st1: "ॲप उघडले जात आहे", st2: "AndroidManifest.xml वाचले जात आहे", st3: "कोड तपासणी", st4: "स्वाक्षरी आणि ट्रोजन पॅटर्न तपासणी",
       err_t: "आम्ही ही फाइल तपासू शकलो नाही", again: "दुसरी फाइल तपासा", risk: "धोका",
-      speak: "ऐका", share: "कुटुंबाला WhatsApp वर पाठवा",
+      speak: "ऐका", stop: "थांबवा", share: "कुटुंबाला WhatsApp वर पाठवा",
       triad_t: "बँकिंग ट्रोजनची तिहेरी युती", triad_p: "स्वतंत्रपणे या परवानग्या योग्य असू शकतात. तिन्ही एकत्र — हीच OTP चोराने ट्रोजनची पद्धत असते.",
       tri_sms: "SMS वाचतो", tri_sms_s: "तुमचे OTP पाहतो", tri_acc: "ॲक्सेसिबिलिटी", tri_acc_s: "तुमची स्क्रीन चालवतो", tri_ovl: "ॲप्सच्या वर दिसते", tri_ovl_s: "बनावट लॉगिन पेज",
       findings_t: "आम्हाला काय आढळले", tech_t: "तांत्रिक तपशील",
@@ -170,7 +170,7 @@
       how3: "ট্রোজান প্যাটার্ন শনাক্তকরণ", how3p: "বিপজ্জনক <em>সমন্বয়</em> — যেমন SMS + অ্যাক্সেসিবিলিটি + ওভারলে — ব্যাংকিং ট্রোজানের প্রধান লক্ষণ।",
       st0: "আপলোড হচ্ছে", st1: "অ্যাপ খোলা হচ্ছে", st2: "AndroidManifest.xml পড়া হচ্ছে", st3: "কোড বিশ্লেষণ", st4: "স্বাক্ষর ও ট্রোজান প্যাটার্ন যাচাই",
       err_t: "এই ফাইলটি যাচাই করা যায়নি", again: "অন্য ফাইল যাচাই করুন", risk: "ঝুঁকি",
-      speak: "শুনুন", share: "পরিবারকে WhatsApp-এ পাঠান",
+      speak: "শুনুন", stop: "থামুন", share: "পরিবারকে WhatsApp-এ পাঠান",
       triad_t: "ব্যাংকিং ট্রোজানের ত্রয়ী", triad_p: "আলাদাভাবে এগুলো বৈধ হতে পারে। কিন্তু একসাথে তিনটিই — OTP চোর ট্রোজানের প্রধান কৌশল।",
       tri_sms: "SMS পড়তে পারে", tri_sms_s: "আপনার OTP দেখতে পারে", tri_acc: "অ্যাক্সেসিবিলিটি", tri_acc_s: "স্ক্রিন নিয়ন্ত্রণ করে", tri_ovl: "অন্য অ্যাপের উপরে ভেসে ওঠে", tri_ovl_s: "ভুয়ো লগইন পেজ",
       findings_t: "আমরা যা পেয়েছি", tech_t: "প্রযুক্তিগত বিবরণ",
@@ -189,7 +189,7 @@
     paste_denied: "Couldn't paste — long-press inside the box and choose Paste.",
     lure_t: "What bait it uses", lure_need: "A real app like this needs", lure_asks: "This app additionally asks for",
     none: "No danger signs found.", seen: "This exact file has been checked {n} times — it is probably being sent to many people.",
-    copied: "Message copied", no_voice: "No voice for this language is installed on your device",
+    copied: "Message copied", no_voice: "No voice for this language is installed on your device", stop: "Stop",
     reported_by: "🚩 Reported as a scam by {n} people",
     evidence: "Show evidence", stats: "{n} app files checked so far · {d} found dangerous",
     shot_label: "Payment screenshot", shot_read: "What we read", shot_marked: "Areas marked in red look edited",
@@ -243,6 +243,7 @@
   const t = (k, vars = {}) => (UI[lang][k] ?? UI.en[k] ?? k).replace(/\{(\w+)\}/g, (_, v) => vars[v]).replace(/\bby 1 people\b/, "by 1 person");
 
   function setLang(l) {
+    stopAudio();
     lang = l;
     try { localStorage.setItem("apkx_lang", l); } catch (_) {}
     document.documentElement.lang = l;
@@ -256,6 +257,7 @@
   // ------------------------------------------------------------ views
   const views = ["home", "progress", "error", "result", "report", "complaint"];
   function show(v) {
+    if (v !== "result") stopAudio();
     views.forEach((x) => ($("#" + x).hidden = x !== v));
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
@@ -325,6 +327,7 @@
   };
 
   function render(r) {
+    stopAudio();
     current = r;
     const v = r.verdict;
     const box = $("#verdict");
@@ -556,23 +559,94 @@
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-act]"); if (!b) return;
     const act = b.dataset.act;
-    if (act === "again") { speechSynthesis?.cancel(); history.pushState({}, "", "/"); current = null; show("home"); }
+    if (act === "again") { stopAudio(); history.pushState({}, "", "/"); current = null; show("home"); }
     if (act === "speak") speak();
     if (act === "share") share();
   });
 
-  function speak() {
-    if (!("speechSynthesis" in window) || !current) return;
-    speechSynthesis.cancel();
-    const v = current.verdict;
-    const top = current.findings.filter((f) => f.severity === "critical" || f.severity === "high").slice(0, 2).map((f) => (f.title && (f.title[lang] || f.title.en)) || f.title);
-    const text = [(v.headline && (v.headline[lang] || v.headline.en)) || "", ...top, (v.advice && (v.advice[lang] || v.advice.en)) || ""].join(". ");
+  let currentAudio = null;
+
+  function stopAudio() {
+    if (currentAudio) {
+      try {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      } catch (_) {}
+      currentAudio = null;
+    }
+    if ("speechSynthesis" in window) {
+      try { speechSynthesis.cancel(); } catch (_) {}
+    }
+    const btn = document.querySelector('[data-act="speak"]');
+    if (btn) {
+      btn.innerHTML = `<span aria-hidden="true">🔊</span> <span data-i="speak">${esc(t("speak"))}</span>`;
+      btn.classList.remove("playing");
+    }
+  }
+
+  async function speak() {
+    if (!current) return;
+    if (currentAudio) {
+      stopAudio();
+      return;
+    }
+    const v = current.verdict || {};
+    const top = (current.findings || [])
+      .filter((f) => f.severity === "critical" || f.severity === "high")
+      .slice(0, 2)
+      .map((f) => (f.title && (f.title[lang] || f.title.en)) || (typeof f.title === "string" ? f.title : ""));
+    const h = (v.headline && (v.headline[lang] || v.headline.en)) || (typeof v.headline === "string" ? v.headline : "");
+    const a = (v.advice && (v.advice[lang] || v.advice.en)) || (typeof v.advice === "string" ? v.advice : "");
+    const parts = [h, ...top, a].filter(Boolean);
+    const text = parts.join(". ");
+    if (!text.trim()) return;
+
+    const btn = document.querySelector('[data-act="speak"]');
+    if (btn) {
+      btn.innerHTML = `<span aria-hidden="true">⏹</span> <span>${esc(t("stop"))}</span>`;
+      btn.classList.add("playing");
+    }
+
+    try {
+      const audioUrl = `/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}`;
+      const audio = new Audio(audioUrl);
+      currentAudio = audio;
+      audio.onended = () => {
+        if (currentAudio === audio) stopAudio();
+      };
+      audio.onerror = () => {
+        if (currentAudio === audio) {
+          stopAudio();
+          fallbackSpeechSynthesis(text);
+        }
+      };
+      await audio.play();
+    } catch (_) {
+      stopAudio();
+      fallbackSpeechSynthesis(text);
+    }
+  }
+
+  function fallbackSpeechSynthesis(text) {
+    if (!("speechSynthesis" in window)) return;
     const code = { en: "en-IN", hi: "hi-IN", kn: "kn-IN", ta: "ta-IN", te: "te-IN", mr: "mr-IN", bn: "bn-IN" }[lang] || "en-IN";
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = code; u.rate = 0.92;
-    const voices = speechSynthesis.getVoices();
+    const voices = speechSynthesis.getVoices() || [];
     const voice = voices.find((x) => x.lang === code) || voices.find((x) => x.lang.startsWith(lang));
-    if (voice) u.voice = voice; else if (lang !== "en" && voices.length) toast(t("no_voice"));
+    if (!voice && lang !== "en") {
+      toast(t("no_voice"));
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = code;
+    u.rate = 0.92;
+    if (voice) u.voice = voice;
+    const btn = document.querySelector('[data-act="speak"]');
+    if (btn) {
+      btn.innerHTML = `<span aria-hidden="true">⏹</span> <span>${esc(t("stop"))}</span>`;
+      btn.classList.add("playing");
+    }
+    u.onend = () => stopAudio();
+    u.onerror = () => stopAudio();
     speechSynthesis.speak(u);
   }
 
