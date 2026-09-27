@@ -231,7 +231,7 @@ def _ela(im: Image.Image, quality=90) -> np.ndarray:
 
 # ------------------------------------------------------------------ OCR
 
-OCR_WIDTH = 1080
+OCR_WIDTH = 800
 
 
 def _prep_for_ocr(im: Image.Image) -> tuple[Image.Image, float, bool]:
@@ -427,30 +427,37 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
                 words.append(w)
             elif w["conf"] > words[clash]["conf"]:
                 words[clash] = w
-    # Extra pass over the top of the screen, binarised: apps print the date/status there in small text on coloured bars.
-    try:
-        import cv2
-        ga = np.asarray(g)
-        band_h = int(ga.shape[0] * 0.14)
-        _, band = cv2.threshold(ga[:band_h], 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        if (band < 128).mean() > 0.5:
-            band = 255 - band
-        d = pytesseract.image_to_data(Image.fromarray(band), config="--psm 6", output_type=pytesseract.Output.DICT)
-        for i, raw_txt in enumerate(d["text"]):
-            txt = _norm_ocr((raw_txt or "").strip())
-            if not txt or float(d["conf"][i]) < 40:
-                continue
-            x, y, bw, bh = d["left"][i], d["top"][i], d["width"][i], d["height"][i]
-            b = (int(x / scale), int(y / scale), int((x + bw) / scale), int((y + bh) / scale))
-            w = {"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b,
-                 "h": (b[3] - b[1]), "conf": float(d["conf"][i])}
-            clash = next((k for k, o in enumerate(words) if iou(o["box"], w["box"]) > 0.3), None)
-            if clash is None:
-                words.append(w)
-            elif w["conf"] > words[clash]["conf"]:
-                words[clash] = w
-    except Exception:
-        pass
+        # Fast exit: if first pass already found amount/currency and UTR or reference, skip subsequent slow passes!
+        has_key_info = any(re.search(r"₹|rs\.?|inr", w["text"], re.I) or re.search(r"\b\d{12}\b", w["text"]) for w in words)
+        if has_key_info and len(words) >= 6:
+            break
+
+    # Extra pass over the top of the screen only if key info was not found in the main pass
+    has_key_info = any(re.search(r"₹|rs\.?|inr", w["text"], re.I) or re.search(r"\b\d{12}\b", w["text"]) for w in words)
+    if not has_key_info:
+        try:
+            import cv2
+            ga = np.asarray(g)
+            band_h = int(ga.shape[0] * 0.14)
+            _, band = cv2.threshold(ga[:band_h], 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            if (band < 128).mean() > 0.5:
+                band = 255 - band
+            d = pytesseract.image_to_data(Image.fromarray(band), config="--psm 6", output_type=pytesseract.Output.DICT)
+            for i, raw_txt in enumerate(d["text"]):
+                txt = _norm_ocr((raw_txt or "").strip())
+                if not txt or float(d["conf"][i]) < 40:
+                    continue
+                x, y, bw, bh = d["left"][i], d["top"][i], d["width"][i], d["height"][i]
+                b = (int(x / scale), int(y / scale), int((x + bw) / scale), int((y + bh) / scale))
+                w = {"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b,
+                     "h": (b[3] - b[1]), "conf": float(d["conf"][i])}
+                clash = next((k for k, o in enumerate(words) if iou(o["box"], w["box"]) > 0.3), None)
+                if clash is None:
+                    words.append(w)
+                elif w["conf"] > words[clash]["conf"]:
+                    words[clash] = w
+        except Exception:
+            pass
 
     return _group_lines(words), g, scale
 
