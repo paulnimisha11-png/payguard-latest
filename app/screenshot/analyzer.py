@@ -231,17 +231,17 @@ def _ela(im: Image.Image, quality=90) -> np.ndarray:
 
 # ------------------------------------------------------------------ OCR
 
-OCR_WIDTH = 640
+OCR_WIDTH = 1080
 
 
 def _prep_for_ocr(im: Image.Image) -> tuple[Image.Image, float, bool]:
-    """Grey, 640 px wide, dark text on a light background (dark-mode screenshots are inverted)."""
-    scale = OCR_WIDTH / im.width
+    """Grey, max 1080 px wide, dark text on a light background (dark-mode screenshots are inverted)."""
+    scale = min(1.0, OCR_WIDTH / im.width) if im.width > 0 else 1.0
     g = ImageOps.grayscale(im)
     dark = float(np.median(np.asarray(g))) < 110
     if dark:
         g = ImageOps.invert(g)
-    if abs(scale - 1) > 0.01:
+    if scale < 0.99:
         g = g.resize((OCR_WIDTH, int(round(im.height * scale))), Image.BILINEAR)
     return g, scale, dark
 
@@ -904,18 +904,14 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
                           f"{kn} ಹಿಂದಿನ ಬಣ್ಣ ಸುತ್ತಲಿನ ಪರದೆಗಿಂತ ಸ್ವಲ್ಪ ಬೇರೆಯಾಗಿದೆ. ಹಳೆಯ ಅಕ್ಷರಗಳ ಮೇಲೆ ಬಣ್ಣ ಹಚ್ಚಿ ಹೊಸದನ್ನು ಬರೆದಾಗ ಇದೇ ಗುರುತು ಉಳಿಯುತ್ತದೆ."),
                         [f"Field: {en}", f"Colour difference: {d:.1f} (genuine screenshots: under 3)"], box))
 
-    # text style outliers among same-size words (only check words similar in height to amount/utr)
-    target_boxes = [fields[k] for k in ("amount", "utr") if k in fields]
-    target_heights = [b[3] - b[1] for b in target_boxes]
+    # text style outliers among same-size words
     styled = []
-    if target_heights:
-        for l in lines:
-            for w in l["words"]:
-                wh = w["box"][3] - w["box"][1]
-                if any(abs(wh - th) <= 0.25 * th for th in target_heights) and len(re.sub(r"\W", "", w["text"])) >= 2:
-                    st = _ink_and_stroke(arr, w["box"])
-                    if st:
-                        styled.append({"w": w, "ink": st[0], "stroke": st[1]})
+    for l in lines:
+        for w in l["words"]:
+            if len(re.sub(r"\W", "", w["text"])) >= 2:
+                st = _ink_and_stroke(arr, w["box"])
+                if st:
+                    styled.append({"w": w, "ink": st[0], "stroke": st[1]})
     for key in ("amount", "utr"):
         box = fields.get(key)
         if not box:

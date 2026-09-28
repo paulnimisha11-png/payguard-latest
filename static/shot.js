@@ -6,9 +6,11 @@
 
   async function prepImage(file) {
     if (!file || !file.type.startsWith("image/")) return file;
+    // Keep screenshots under 5 MB untouched to preserve lossless text edges & pixel forensics!
+    if (file.size <= 5 * 1024 * 1024) return file;
     try {
       const bmp = await createImageBitmap(file);
-      const maxDim = 1200;
+      const maxDim = 2400;
       if (bmp.width <= maxDim && bmp.height <= maxDim) return file;
 
       const scale = Math.min(maxDim / bmp.width, maxDim / bmp.height);
@@ -17,8 +19,9 @@
       canvas.height = Math.round(bmp.height * scale);
       const ctx = canvas.getContext("2d");
       ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.85));
-      return new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
+      const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
+      const blob = await new Promise((res) => canvas.toBlob(res, mime, 0.95));
+      return new File([blob], file.name, { type: mime });
     } catch (_) {
       return file;
     }
