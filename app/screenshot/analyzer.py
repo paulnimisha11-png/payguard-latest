@@ -231,18 +231,18 @@ def _ela(im: Image.Image, quality=90) -> np.ndarray:
 
 # ------------------------------------------------------------------ OCR
 
-OCR_WIDTH = 800
+OCR_WIDTH = 640
 
 
 def _prep_for_ocr(im: Image.Image) -> tuple[Image.Image, float, bool]:
-    """Grey, 1080 px wide, dark text on a light background (dark-mode screenshots are inverted)."""
+    """Grey, 640 px wide, dark text on a light background (dark-mode screenshots are inverted)."""
     scale = OCR_WIDTH / im.width
     g = ImageOps.grayscale(im)
     dark = float(np.median(np.asarray(g))) < 110
     if dark:
         g = ImageOps.invert(g)
     if abs(scale - 1) > 0.01:
-        g = g.resize((OCR_WIDTH, int(round(im.height * scale))), Image.LANCZOS)
+        g = g.resize((OCR_WIDTH, int(round(im.height * scale))), Image.BILINEAR)
     return g, scale, dark
 
 
@@ -412,8 +412,9 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
         ua = (a[2] - a[0]) * (a[3] - a[1]) + (b[2] - b[0]) * (b[3] - b[1]) - inter
         return inter / ua if ua else 0
 
+    base_cfg = "--oem 1 -c tessedit_do_invert=0 -c invert_threshold=0"
     for psm in (11, 6):
-        d = pytesseract.image_to_data(g, config=f"--psm {psm}", output_type=pytesseract.Output.DICT)
+        d = pytesseract.image_to_data(g, config=f"--psm {psm} {base_cfg}", output_type=pytesseract.Output.DICT)
         for i, raw_txt in enumerate(d["text"]):
             txt = _norm_ocr((raw_txt or "").strip())
             if not txt or float(d["conf"][i]) < 30:
@@ -429,7 +430,7 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
                 words[clash] = w
         # Fast exit: if first pass already found amount/currency and UTR or reference, skip subsequent slow passes!
         has_key_info = any(re.search(r"₹|rs\.?|inr", w["text"], re.I) or re.search(r"\b\d{12}\b", w["text"]) for w in words)
-        if has_key_info and len(words) >= 6:
+        if has_key_info and len(words) >= 5:
             break
 
     # Extra pass over the top of the screen only if key info was not found in the main pass
@@ -442,7 +443,7 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
             _, band = cv2.threshold(ga[:band_h], 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             if (band < 128).mean() > 0.5:
                 band = 255 - band
-            d = pytesseract.image_to_data(Image.fromarray(band), config="--psm 6", output_type=pytesseract.Output.DICT)
+            d = pytesseract.image_to_data(Image.fromarray(band), config=f"--psm 6 {base_cfg}", output_type=pytesseract.Output.DICT)
             for i, raw_txt in enumerate(d["text"]):
                 txt = _norm_ocr((raw_txt or "").strip())
                 if not txt or float(d["conf"][i]) < 40:
@@ -903,14 +904,18 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
                           f"{kn} ಹಿಂದಿನ ಬಣ್ಣ ಸುತ್ತಲಿನ ಪರದೆಗಿಂತ ಸ್ವಲ್ಪ ಬೇರೆಯಾಗಿದೆ. ಹಳೆಯ ಅಕ್ಷರಗಳ ಮೇಲೆ ಬಣ್ಣ ಹಚ್ಚಿ ಹೊಸದನ್ನು ಬರೆದಾಗ ಇದೇ ಗುರುತು ಉಳಿಯುತ್ತದೆ."),
                         [f"Field: {en}", f"Colour difference: {d:.1f} (genuine screenshots: under 3)"], box))
 
-    # text style outliers among same-size words
+    # text style outliers among same-size words (only check words similar in height to amount/utr)
+    target_boxes = [fields[k] for k in ("amount", "utr") if k in fields]
+    target_heights = [b[3] - b[1] for b in target_boxes]
     styled = []
-    for l in lines:
-        for w in l["words"]:
-            if len(re.sub(r"\W", "", w["text"])) >= 2:
-                st = _ink_and_stroke(arr, w["box"])
-                if st:
-                    styled.append({"w": w, "ink": st[0], "stroke": st[1]})
+    if target_heights:
+        for l in lines:
+            for w in l["words"]:
+                wh = w["box"][3] - w["box"][1]
+                if any(abs(wh - th) <= 0.25 * th for th in target_heights) and len(re.sub(r"\W", "", w["text"])) >= 2:
+                    st = _ink_and_stroke(arr, w["box"])
+                    if st:
+                        styled.append({"w": w, "ink": st[0], "stroke": st[1]})
     for key in ("amount", "utr"):
         box = fields.get(key)
         if not box:
@@ -1223,9 +1228,9 @@ def _annotate(im: Image.Image, findings: list[dict], fields: dict, heat) -> str:
         x0, y0, x1, y1 = f["box"]
         d.rectangle((x0 - lw * 2, y0 - lw * 2, x1 + lw * 2, y1 + lw * 2), outline=col, width=lw)
         d.rectangle((x0 - lw * 2, y0 - lw * 2, x1 + lw * 2, y1 + lw * 2), fill=col[:3] + (40,))
-    if base.width > 720:
-        base = base.resize((720, int(base.height * 720 / base.width)), Image.LANCZOS)
+    if base.width > 640:
+        base = base.resize((640, int(base.height * 640 / base.width)), Image.BILINEAR)
     buf = io.BytesIO()
-    base.save(buf, "PNG")
-    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+    base.convert("RGB").save(buf, "JPEG", quality=82)
+    return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
 

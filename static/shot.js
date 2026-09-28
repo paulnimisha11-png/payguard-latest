@@ -8,7 +8,7 @@
     if (!file || !file.type.startsWith("image/")) return file;
     try {
       const bmp = await createImageBitmap(file);
-      const maxDim = 1440;
+      const maxDim = 1200;
       if (bmp.width <= maxDim && bmp.height <= maxDim) return file;
 
       const scale = Math.min(maxDim / bmp.width, maxDim / bmp.height);
@@ -17,7 +17,7 @@
       canvas.height = Math.round(bmp.height * scale);
       const ctx = canvas.getContext("2d");
       ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-      const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.88));
+      const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.85));
       return new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), { type: "image/jpeg" });
     } catch (_) {
       return file;
