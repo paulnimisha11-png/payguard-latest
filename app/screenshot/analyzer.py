@@ -1019,7 +1019,7 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
                             [f"Date shown: {ex['date']['text']}"], ex["date"]["box"]))
             elif now - d > dt.timedelta(days=1):
                 days = (now - d).days
-                F.append(_f("OLD_PAYMENT", "medium", 12,
+                F.append(_f("OLD_PAYMENT", "low", 8,
                             T(f"This payment is {days} days old", f"यह पेमेंट {days} दिन पुराना है", f"ಈ ಪಾವತಿ {days} ದಿನ ಹಳೆಯದು"),
                             T("If they say they just paid, this may be an old screenshot being reused.",
                               "अगर वे कह रहे हैं कि अभी पेमेंट किया, तो यह पुराना स्क्रीनशॉट दोबारा इस्तेमाल हो सकता है।",
