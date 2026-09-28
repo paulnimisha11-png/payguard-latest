@@ -50,7 +50,10 @@ os.environ.setdefault("MKL_NUM_THREADS", "1")
 # this is critical to avoid 504 timeouts and OOM (Out Of Memory) container crashes.
 # RapidOCR (pip install rapidocr_onnxruntime) is used as a fallback when Tesseract is not installed on the system.
 _RAPID = None
+_OCR_PREF = os.environ.get("APKXRAY_OCR", "auto").strip().lower()
 try:
+    if _OCR_PREF == "tesseract":
+        raise ImportError("RapidOCR disabled by APKXRAY_OCR=tesseract")
     from rapidocr_onnxruntime import RapidOCR as _RapidOCR
     HAS_RAPID = True
 except Exception:
