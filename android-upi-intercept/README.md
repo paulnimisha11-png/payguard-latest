@@ -49,10 +49,28 @@ cd android-upi-intercept
 ./gradlew installDebug               # installs straight onto a USB-connected phone
 ```
 
+### Signing: demo key vs. your own key
+Builds are signed with **your private key** when it's provided, and otherwise with the **public demo key**
+(`app/payguard-demo.keystore`, password `payguard`), which is fine for the hackathon demo but must never be used
+for an app you share widely: anyone can sign a fake "PayGuard" with it. The GitHub release notes say which key signed
+each build.
+
+Create your own key once (keep the file and passwords private, never commit them):
+```bash
+keytool -genkeypair -v -keystore payguard-release.jks -alias payguard -keyalg RSA -keysize 4096 -validity 10000
+base64 -w0 payguard-release.jks > keystore.b64      # macOS: base64 -i payguard-release.jks -o keystore.b64
+```
+Then in GitHub → Settings → Secrets and variables → Actions → **Secrets**, add:
+`ANDROID_KEYSTORE_BASE64` (contents of keystore.b64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`payguard`),
+`ANDROID_KEY_PASSWORD`. Local builds read the same values as `PAYGUARD_KEYSTORE_FILE`, `PAYGUARD_KEYSTORE_PASSWORD`,
+`PAYGUARD_KEY_ALIAS`, `PAYGUARD_KEY_PASSWORD` from environment variables or `~/.gradle/gradle.properties`.
+Phones that installed a demo-signed build must uninstall it once before installing the first build signed with the
+new key (Android refuses updates signed by a different key).
+
 ### Let people download it from your website
 Copy the APK to `downloads/payguard.apk` in the backend folder (or set `APKXRAY_APP_APK_URL` to the GitHub release link). The website's "PayGuard for Android" section then shows a **Download the app** button.
 
-All builds are signed with the same demo key (`app/payguard-demo.keystore`), so a newer build installs over an older one. **Before publishing to the Play Store, replace it with a private key kept out of git.**
+Builds without your own key are signed with the public demo key, so a newer build installs over an older one. **Before sharing the app widely, set up your own key** (see "Signing" below).
 
 ## First-time setup on the phone
 1. **Connect to your server.** Open the PayGuard website on your laptop and scroll to the bottom. In the app: **Settings → Scan connect code** → point at the QR. (Or type the URL, e.g. your `https://….lhr.life` tunnel link.) "Test connection" should say ✓ Working.

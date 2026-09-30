@@ -8,10 +8,12 @@ services:
     envVars:
       - key: APKXRAY_RATE_PER_MIN
         value: "60"
-      - key: OCR_ENGINE
-        value: "tesseract"
+      - key: APKXRAY_WORKERS      # one APK analysis process: leaves memory for RapidOCR on the 512 MB free plan
+        value: "1"
+      - key: OCR_ENGINE          # RapidOCR = accurate engine (18/18 on our receipt tests); "tesseract" = low-memory fallback
+        value: "rapidocr"
       - key: APKXRAY_OCR_ENGINE
-        value: "tesseract"
+        value: "rapidocr"
       - key: OMP_NUM_THREADS
         value: "1"
       - key: OPENBLAS_NUM_THREADS

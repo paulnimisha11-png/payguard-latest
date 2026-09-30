@@ -607,35 +607,44 @@
       btn.classList.add("playing");
     }
 
+    // 1) the phone's own voice (best quality, works offline); 2) the server's open-source voice (eSpeak NG) for
+    //    languages the phone has no voice for — common for Kannada, Tamil and Telugu.
+    if (await phoneVoice()) { fallbackSpeechSynthesis(text); return; }
     try {
-      const audioUrl = `/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}`;
-      const audio = new Audio(audioUrl);
+      const audio = new Audio(`/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}`);
       currentAudio = audio;
-      audio.onended = () => {
-        if (currentAudio === audio) stopAudio();
-      };
-      audio.onerror = () => {
-        if (currentAudio === audio) {
-          stopAudio();
-          fallbackSpeechSynthesis(text);
-        }
-      };
+      audio.onended = () => { if (currentAudio === audio) stopAudio(); };
+      audio.onerror = () => { if (currentAudio === audio) { stopAudio(); toast(t("no_voice")); } };
       await audio.play();
     } catch (_) {
       stopAudio();
-      fallbackSpeechSynthesis(text);
+      toast(t("no_voice"));
     }
+  }
+
+  const VOICE_CODE = { en: "en-IN", hi: "hi-IN", kn: "kn-IN", ta: "ta-IN", te: "te-IN", mr: "mr-IN", bn: "bn-IN" };
+  function findVoice() {
+    if (!("speechSynthesis" in window)) return null;
+    const code = VOICE_CODE[lang] || "en-IN";
+    const voices = speechSynthesis.getVoices() || [];
+    return voices.find((x) => x.lang === code) || voices.find((x) => x.lang.replace("_", "-").startsWith(lang + "-"))
+      || (lang === "en" ? voices.find((x) => x.lang.startsWith("en")) : null) || null;
+  }
+  // Voices load asynchronously on some browsers: wait briefly for them.
+  function phoneVoice() {
+    if (!("speechSynthesis" in window)) return Promise.resolve(null);
+    if ((speechSynthesis.getVoices() || []).length) return Promise.resolve(findVoice());
+    return new Promise((res) => {
+      const done = () => res(findVoice());
+      speechSynthesis.addEventListener("voiceschanged", done, { once: true });
+      setTimeout(done, 600);
+    });
   }
 
   function fallbackSpeechSynthesis(text) {
     if (!("speechSynthesis" in window)) return;
-    const code = { en: "en-IN", hi: "hi-IN", kn: "kn-IN", ta: "ta-IN", te: "te-IN", mr: "mr-IN", bn: "bn-IN" }[lang] || "en-IN";
-    const voices = speechSynthesis.getVoices() || [];
-    const voice = voices.find((x) => x.lang === code) || voices.find((x) => x.lang.startsWith(lang));
-    if (!voice && lang !== "en") {
-      toast(t("no_voice"));
-      return;
-    }
+    const code = VOICE_CODE[lang] || "en-IN";
+    const voice = findVoice();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = code;
     u.rate = 0.92;

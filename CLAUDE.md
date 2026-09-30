@@ -3,7 +3,7 @@
 Web app + Android app with three scanners, all giving a risk score + plain-language findings in English/Hindi/Kannada:
 1. APK X-Ray: upload an Android .apk -> static analysis (never installed/run).
 2. PayPause (QR / UPI): upload a QR image, scan with camera, or paste a link -> decodes UPI pay/collect/mandate links and URLs -> flags 'scan to receive money' lures, impersonation, fake bank domains, APK download links, SMS/USSD QR tricks.
-3. Payment screenshot detector: `app/screenshot/analyzer.py` (metadata, per-field pixel forensics via OCR boxes, UTR/date/status logic, reuse check with perceptual hash). OCR: RapidOCR (pip) first, Tesseract fallback; no OCR => TEXT_UNREADABLE, never 'low'. Samples in `samples/screenshots/` (genuine_* must be 'low').
+3. Payment screenshot detector: `app/screenshot/analyzer.py` (metadata, per-field pixel forensics via OCR boxes, UTR/date/status logic, reuse check with perceptual hash). OCR: RapidOCR (default; scans in 1100 px strips so the server stays < 512 MB) with Tesseract as fallback (`OCR_ENGINE=tesseract`, results say 'reduced accuracy'); no OCR => TEXT_UNREADABLE, never 'low'. Screenshots are ALWAYS upscaled to 1080 px and the extra reading passes (`_extra_passes`) must never be skipped: that's what catches edited amounts. `tests/test_screenshot_pairs.py` runs every test once per installed engine with bundled fonts (tests/fonts). Samples in `samples/screenshots/` (genuine_* must be 'low').
 
 ## Commands
 - Install: `pip install -r requirements.txt`
@@ -32,6 +32,11 @@ Web app + Android app with three scanners, all giving a risk score + plain-langu
 - Trends: `app/trends.py` + store `events`/`moderation`; votes have `net` (salted network hash) and reason `not_scam` (dispute). Public only if >= APKXRAY_PUBLIC_MIN reports from as many networks and not disputed. `/trends`, `/admin.html`, `scripts/seed_demo.py`.
 - Family: `app/family/__init__.py` (fam_* tables, X-PG-Device auth, alerts from `_after_check` in main.py), `app/family/push.py` (own Web Push; round-trip tested). Frontend `static/device.js` (loaded first on every page; wraps fetch), `static/family.js`. Android: `Family.java`, `AlertJobService.java`, `WebActivity.java` (JS bridge `PayGuardApp`).
 - Every scan endpoint must return through `_after_check(request, rep)` (community reports + trends counter + family alerts).
+
+- Memory budget (Render free, 512 MB): APK scans run in a short-lived spawn worker (`app/analyzer/worker.py`, max_tasks_per_child=1); screenshots are checked one at a time. Measured: idle 240 MB, worst case 474 MB. Re-measure after adding anything heavy.
+- Read aloud: phone voice first, server fallback `/api/tts` = eSpeak NG (local, GPL program run as a subprocess). Never call unofficial web APIs.
+- Licensing: MIT (`LICENSE`); credit every new dependency/asset in `THIRD_PARTY_NOTICES.md`. Git tag `pre-hackathon` marks what existed before the final hackathon.
+- Android release signing: private key via GitHub secrets (ANDROID_KEYSTORE_*), demo key only as fallback.
 
 ## Conventions
 - Every new rule needs en/hi/kn text for title and detail, plus a test in tests/test_analyzer.py.

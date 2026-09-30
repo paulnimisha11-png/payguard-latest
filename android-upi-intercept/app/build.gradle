@@ -4,6 +4,19 @@ plugins {
 
 def server = (project.findProperty('payguardServer') ?: '').toString().trim()
 
+// Secrets come from a Gradle property or an environment variable (GitHub Actions secrets are passed as env vars).
+def secret = { String name ->
+    def v = project.findProperty(name) ?: System.getenv(name)
+    return v ? v.toString() : null
+}
+def releaseKeystore = secret('PAYGUARD_KEYSTORE_FILE')
+if (releaseKeystore && !file(releaseKeystore).exists()) {
+    throw new GradleException("PAYGUARD_KEYSTORE_FILE points to a missing file: ${releaseKeystore}")
+}
+if (!releaseKeystore) {
+    logger.warn("PayGuard: no release key set, signing with the PUBLIC demo key. Fine for testing, never for publishing.")
+}
+
 android {
     namespace 'app.payguard.shield'
     compileSdk 34
@@ -21,24 +34,36 @@ android {
         buildConfig true
     }
 
-    // One shared demo key so builds from GitHub Actions and Android Studio can update each other.
-    // Replace with a private key (kept out of git) before publishing anywhere public.
+    // Signing
+    // - Release builds use YOUR private key when it's provided (GitHub secrets in CI, or ~/.gradle/gradle.properties /
+    //   environment variables locally): PAYGUARD_KEYSTORE_FILE, PAYGUARD_KEYSTORE_PASSWORD, PAYGUARD_KEY_ALIAS,
+    //   PAYGUARD_KEY_PASSWORD. The private key is never committed.
+    // - Without it, builds fall back to the PUBLIC demo key (payguard-demo.keystore, password "payguard") so the
+    //   hackathon demo still builds. Anyone can sign an app with that key, so never publish a demo-signed APK.
     signingConfigs {
-        shared {
+        demo {
             storeFile file('payguard-demo.keystore')
             storePassword 'payguard'
             keyAlias 'payguard'
             keyPassword 'payguard'
         }
+        if (releaseKeystore) {
+            release {
+                storeFile file(releaseKeystore)
+                storePassword secret('PAYGUARD_KEYSTORE_PASSWORD')
+                keyAlias secret('PAYGUARD_KEY_ALIAS')
+                keyPassword secret('PAYGUARD_KEY_PASSWORD') ?: secret('PAYGUARD_KEYSTORE_PASSWORD')
+            }
+        }
     }
 
     buildTypes {
         debug {
-            signingConfig signingConfigs.shared
+            signingConfig signingConfigs.demo
         }
         release {
             minifyEnabled false
-            signingConfig signingConfigs.shared
+            signingConfig releaseKeystore ? signingConfigs.release : signingConfigs.demo
         }
     }
 

@@ -71,7 +71,12 @@ async def _startup_checks():
         except Exception as e:
             print(f"  Screenshot OCR warmup skipped: {e}", flush=True)
 
-pool = ProcessPoolExecutor(max_workers=int(os.environ.get("APKXRAY_WORKERS", "2")))
+# APK analysis runs in a separate process. Each worker is a fresh, small "spawn" process that exits after one scan
+# (max_tasks_per_child=1), so the ~200 MB androguard needs is returned right away instead of staying resident next
+# to the OCR engine. This is what keeps the whole server inside a 512 MB free-tier container.
+import multiprocessing as _mp
+pool = ProcessPoolExecutor(max_workers=int(os.environ.get("APKXRAY_WORKERS", "1")),
+                           mp_context=_mp.get_context("spawn"), max_tasks_per_child=1)
 _hits: dict[str, deque] = defaultdict(deque)
 
 
@@ -99,8 +104,7 @@ def _rate_limit(ip: str) -> None:
     q.append(now)
 
 
-def _worker(path: str, name: str, workdir: str) -> dict:
-    return analyze_apk(path, name, workdir=workdir)
+from .analyzer.worker import analyze_in_worker as _worker  # noqa: E402  (tiny module: fast, small spawn)
 
 
 async def _virustotal(sha256: str) -> dict | None:
@@ -264,6 +268,18 @@ async def check_message(request: Request, m: MessageIn):
 
 # ------------------------------------------------------------------ payment screenshots
 
+import threading as _threading
+_ocr_slot = _threading.BoundedSemaphore(int(os.environ.get("APKXRAY_OCR_CONCURRENCY", "1")))
+
+
+def _check_screenshot(*args):
+    with _ocr_slot:
+        try:
+            return analyze_screenshot(*args)
+        finally:
+            _trim_memory()
+from .screenshot.analyzer import _trim_memory  # noqa: E402
+
 @app.post("/api/screenshot")
 async def screenshot(request: Request, file: UploadFile = File(...), expected_amount: str = Form(""), bank_sms: str = Form("")):
     _rate_limit(_client_ip(request))
@@ -283,7 +299,9 @@ async def screenshot(request: Request, file: UploadFile = File(...), expected_am
     name = os.path.basename(file.filename or "screenshot.png")[:200]
     loop = asyncio.get_running_loop()
     try:
-        rep = await asyncio.wait_for(loop.run_in_executor(None, lambda: analyze_screenshot(data, name, exp, store.utr_seen_elsewhere, store.similar_receipts, bank_sms[:2000] or None)), 90)
+        # One OCR at a time (_check_screenshot): two at once would double the memory peak on a 512 MB host.
+        rep = await asyncio.wait_for(loop.run_in_executor(None, _check_screenshot, data, name, exp, store.utr_seen_elsewhere,
+                                                          store.similar_receipts, bank_sms[:2000] or None), 90)
     except ValueError as e:
 
         raise HTTPException(422, str(e))
@@ -503,7 +521,7 @@ async def health():
     from .screenshot.analyzer import HAS_OCR, OCR_ENGINE
     return {"ok": True, "engine": ENGINE_VERSION, "llm": bool(os.environ.get("ANTHROPIC_API_KEY")),
             "virustotal": bool(VT_KEY), "ocr": HAS_OCR, "ocr_engine": OCR_ENGINE, "android_apk": os.path.isfile(APK_PATH) or bool(APK_URL), "service": "payguard",
-            "push_recent": [f"{h}:{st}" for h, st in family.PUSH_LOG[-5:]]}
+            "push_recent": [f"{h}:{st}" for h, st in family.PUSH_LOG[-5:]], "tts": "espeak-ng" if ESPEAK else None}
 
 
 # ------------------------------------------------------------------ trends (public)
@@ -728,65 +746,46 @@ async def fam_test(request: Request):
     return {"ok": True}
 
 
+# ------------------------------------------------------------------ read aloud (server fallback)
+# The website first uses the phone's own voice (Web Speech API). Many phones have no Kannada/Tamil/Telugu voice, so
+# the server can also speak, using eSpeak NG (open source, GPL-3.0, runs locally as a separate program, no external
+# service and no API terms to break). It sounds robotic but works offline for all 7 languages.
+ESPEAK = shutil.which("espeak-ng") or shutil.which("espeak")
+TTS_VOICES = {"en": "en-gb", "hi": "hi", "kn": "kn", "ta": "ta", "te": "te", "mr": "mr", "bn": "bn"}
 _tts_cache: dict[tuple[str, str], bytes] = {}
-_tts_lock = asyncio.Lock()
+
+
+def _espeak(text: str, voice: str) -> bytes:
+    import subprocess
+    # argument list, no shell: the text can't inject commands; "--" ends options so text can't start with "-"
+    r = subprocess.run([ESPEAK, "-v", voice, "-s", "145", "--stdout", "--", text], capture_output=True, timeout=20)
+    if r.returncode != 0 or not r.stdout.startswith(b"RIFF"):
+        raise RuntimeError((r.stderr or b"")[:200].decode(errors="replace"))
+    return r.stdout
 
 
 @app.get("/api/tts")
-async def tts(text: str, lang: str = "en"):
-    """Natural pronunciation text-to-speech for Indian languages (hi, kn, ta, te, mr, bn, en)."""
-    text = (text or "").strip()[:600]
+async def tts(request: Request, text: str = "", lang: str = "en"):
+    """Speak a verdict in en/hi/kn/ta/te/mr/bn. Returns audio/wav."""
+    text = " ".join((text or "").split())[:600]
     if not text:
         raise HTTPException(400, "Text is required.")
-    lang = lang.lower()[:5]
-    tl = {"en": "en-IN", "hi": "hi", "kn": "kn", "ta": "ta", "te": "te", "mr": "mr", "bn": "bn"}.get(lang, "en-IN")
-    cache_key = (tl, text)
-    async with _tts_lock:
-        cached = _tts_cache.get(cache_key)
-    if cached:
-        return Response(content=cached, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
-
-    words = text.split()
-    chunks, cur, cur_len = [], [], 0
-    for w in words:
-        if cur_len + len(w) + 1 > 180:
-            if cur:
-                chunks.append(" ".join(cur))
-            cur = [w]
-            cur_len = len(w)
-        else:
-            cur.append(w)
-            cur_len += len(w) + 1
-    if cur:
-        chunks.append(" ".join(cur))
-    if not chunks:
-        chunks = [text[:180]]
-
-    out = bytearray()
-    import certifi
-    import ssl
-    import urllib.parse
-    ssl_ctx = ssl.create_default_context(cafile=certifi.where())
-    try:
-        async with httpx.AsyncClient(verify=ssl_ctx, timeout=8.0) as client:
-            for c in chunks:
-                url = f"https://translate.google.com/translate_tts?ie=UTF-8&q={urllib.parse.quote(c)}&tl={tl}&client=tw-ob"
-                r = await client.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-                if r.status_code == 200 and r.content:
-                    out.extend(r.content)
-    except Exception as exc:
-        raise HTTPException(502, f"TTS service unavailable: {exc}")
-
-    if not out:
-        raise HTTPException(502, "Failed to generate audio.")
-
-    audio_bytes = bytes(out)
-    async with _tts_lock:
+    if not ESPEAK:
+        raise HTTPException(503, "Server voice isn't installed (apt install espeak-ng). Your phone's own voice will be used.")
+    voice = TTS_VOICES.get((lang or "en").lower()[:2], "en-gb")
+    key = (voice, text)
+    audio = _tts_cache.get(key)
+    if audio is None:
+        _rate_limit(_client_ip(request))
+        loop = asyncio.get_running_loop()
+        try:
+            audio = await loop.run_in_executor(None, _espeak, text, voice)
+        except Exception as e:
+            raise HTTPException(502, f"Couldn't create audio: {e}")
         if len(_tts_cache) > 300:
             _tts_cache.clear()
-        _tts_cache[cache_key] = audio_bytes
-
-    return Response(content=audio_bytes, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
+        _tts_cache[key] = audio
+    return Response(content=audio, media_type="audio/wav", headers={"Cache-Control": "public, max-age=86400"})
 
 
 @app.exception_handler(RequestValidationError)

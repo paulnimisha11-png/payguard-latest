@@ -161,3 +161,9 @@ scripts/seed_demo.py     Labelled demo data for the trends page
 static/                  Web app (vanilla JS, mobile-first, EN/हिंदी/ಕನ್ನಡ, read-aloud); trends.html, family.html, admin.html
 tests/  samples/
 ```
+
+## License and credits
+PayGuard is open source under the [MIT License](LICENSE). Third-party libraries, programs, fonts and the three
+open-source sample apps in `samples/` keep their own licenses and are credited in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Parts of the code were written with an AI coding assistant
+(Anthropic's Claude); the team reviewed, tested and is responsible for it.

@@ -8,16 +8,30 @@ import os
 import pytest
 from PIL import Image, ImageDraw, ImageFont
 
+from app.screenshot import analyzer as A
 from app.screenshot.analyzer import HAS_OCR, analyze_screenshot
 
-GF = "/usr/share/fonts/truetype/google-fonts/"
-pytestmark = pytest.mark.skipif(not (HAS_OCR and os.path.exists(GF + "Poppins-Regular.ttf")), reason="needs OCR + fonts")
+# The synthetic receipts are drawn with Poppins, bundled in tests/fonts (SIL Open Font License, see OFL.txt), so
+# they render identically on every machine. Before this, the tests needed a system font GitHub Actions doesn't
+# have and were silently SKIPPED in CI, which is how an OCR "speed-up" that broke edit detection got merged.
+FONT_DIR = os.path.join(os.path.dirname(__file__), "fonts")
+HAVE_FONT = os.path.exists(os.path.join(FONT_DIR, "Poppins-Regular.ttf"))
+pytestmark = pytest.mark.skipif(not (HAS_OCR and HAVE_FONT), reason="needs an OCR engine and tests/fonts")
+
+ENGINES = [e for e, ok in (("rapidocr", A.HAS_RAPID), ("tesseract", A.HAS_TESS)) if ok]
+
+
+@pytest.fixture(autouse=True, params=ENGINES)
+def engine(request, monkeypatch):
+    """Every test here runs once per installed OCR engine: a change that breaks either engine fails CI."""
+    monkeypatch.setattr(A, "OCR_ENGINE", request.param)
+    return request.param
 
 BG, CARD, INK, DIM = (18, 18, 18), (30, 30, 30), (235, 235, 235), (150, 150, 150)
 
 
 def F(name, size):
-    return ImageFont.truetype(GF + name, size)
+    return ImageFont.truetype(os.path.join(FONT_DIR, name), size)
 
 
 def receipt(top="10", debit="10", utr="741859300059", txn="T2609261828141973800079", erase_top_digit=False):

@@ -45,10 +45,10 @@ os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 
 # OCR engines.
-# Tesseract is preferred when available: it executes in ~1-2 seconds and uses only ~30MB RAM.
-# On cloud/container platforms (e.g. Render free tier with 512MB RAM and 0.5 CPU quota),
-# this is critical to avoid 504 timeouts and OOM (Out Of Memory) container crashes.
-# RapidOCR (pip install rapidocr_onnxruntime) is used as a fallback when Tesseract is not installed on the system.
+# RapidOCR (pip install rapidocr_onnxruntime) is the default: on our receipt test set it gets 18/18 right, Tesseract
+# 15/18 (it raised false "edited" alarms on a genuine receipt). Scanning in strips (_rapid_strips) keeps RapidOCR's
+# peak at ~440 MB for the whole server, so it fits a 512 MB host. Tesseract is the fallback, or can be forced with
+# OCR_ENGINE=tesseract on very small machines; results then say "reduced accuracy".
 _RAPID = None
 _OCR_PREF = os.environ.get("APKXRAY_OCR", "auto").strip().lower()
 try:
@@ -76,7 +76,7 @@ if _pref == "rapidocr" and HAS_RAPID:
 elif _pref == "tesseract" and HAS_TESS:
     OCR_ENGINE = "tesseract"
 else:
-    OCR_ENGINE = "tesseract" if HAS_TESS else "rapidocr" if HAS_RAPID else None
+    OCR_ENGINE = "rapidocr" if HAS_RAPID else "tesseract" if HAS_TESS else None
 
 
 def _rapid():
@@ -85,6 +85,20 @@ def _rapid():
         os.environ["OMP_NUM_THREADS"] = "1"
         os.environ["OPENBLAS_NUM_THREADS"] = "1"
         os.environ["MKL_NUM_THREADS"] = "1"
+        # One ONNX thread: ~20 MB lower peak, and a free-tier host only has half a CPU anyway.
+        try:
+            import onnxruntime as _ort
+            import rapidocr_onnxruntime.utils as _ru
+            _Orig = _ort.SessionOptions
+
+            def _one_thread():
+                o = _Orig()
+                o.intra_op_num_threads = 1
+                o.inter_op_num_threads = 1
+                return o
+            _ru.SessionOptions = _one_thread
+        except Exception:
+            pass
         # screenshots are always upright; the 180° classifier sometimes flips short tokens ("₹10" -> "0L2")
         _RAPID = _RapidOCR(use_angle_cls=False)
     return _RAPID
@@ -238,14 +252,16 @@ OCR_WIDTH = 1080
 
 
 def _prep_for_ocr(im: Image.Image) -> tuple[Image.Image, float, bool]:
-    """Grey, max 1080 px wide, dark text on a light background (dark-mode screenshots are inverted)."""
-    scale = min(1.0, OCR_WIDTH / im.width) if im.width > 0 else 1.0
+    """Grey, exactly 1080 px wide, dark text on a light background (dark-mode screenshots are inverted).
+    Small screenshots (WhatsApp forwards are often ~600 px wide) MUST be enlarged: both OCR engines misread
+    small digits and the ₹ sign otherwise, which is exactly where edits hide."""
+    scale = OCR_WIDTH / im.width if im.width > 0 else 1.0
     g = ImageOps.grayscale(im)
     dark = float(np.median(np.asarray(g))) < 110
     if dark:
         g = ImageOps.invert(g)
-    if scale < 0.99:
-        g = g.resize((OCR_WIDTH, int(round(im.height * scale))), Image.BILINEAR)
+    if abs(scale - 1) > 0.01:
+        g = g.resize((OCR_WIDTH, int(round(im.height * scale))), Image.LANCZOS)
     return g, scale, dark
 
 
@@ -286,10 +302,48 @@ def _norm_ocr(txt: str | None) -> str:
     return re.sub(r"[\u2E80-\u9FFF\uAC00-\uD7AF](?=\s?\d)", "₹", t)
 
 
+STRIP_H = int(os.environ.get("APKXRAY_OCR_STRIP", "1100"))
+
+
+def _rapid_strips(ga: np.ndarray) -> list:
+    """RapidOCR over a tall screenshot in overlapping horizontal strips. Same resolution, same accuracy, but the
+    text detector's memory peak drops from ~430 MB to ~250 MB for a 1080x2400 screenshot, which is what lets
+    RapidOCR run on a 512 MB server (Render free plan)."""
+    H = ga.shape[0]
+    if H <= STRIP_H + 300:
+        res, _ = _rapid()(np.stack([ga, ga, ga], axis=2))
+        return list(res or [])
+    overlap = 160
+    out = []
+    y = 0
+    while y < H:
+        y1 = min(H, y + STRIP_H)
+        part = ga[y:y1]
+        res, _ = _rapid()(np.stack([part, part, part], axis=2))
+        for box, txt, score in res or []:
+            box = [[p[0], p[1] + y] for p in box]
+            ys = [p[1] for p in box]
+            # a line cut by the strip edge is read again, whole, by the next/previous strip
+            if (min(ys) < y + 4 and y > 0) or (max(ys) > y1 - 4 and y1 < H):
+                continue
+            cy = sum(ys) / 4
+            cx = sum(p[0] for p in box) / 4
+            dup = next((i for i, (b2, _, _) in enumerate(out)
+                        if min(p[0] for p in b2) <= cx <= max(p[0] for p in b2) and min(p[1] for p in b2) <= cy <= max(p[1] for p in b2)), None)
+            if dup is None:
+                out.append((box, txt, score))
+            elif float(score) > float(out[dup][2]):
+                out[dup] = (box, txt, score)
+        if y1 >= H:
+            break
+        y = y1 - overlap
+    return out
+
+
 def _ocr_rapid(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
     g, scale, _dark = _prep_for_ocr(im)
     ga = np.asarray(g)
-    res, _ = _rapid()(np.stack([ga, ga, ga], axis=2))
+    res = _rapid_strips(ga)
     words = []
     for box, txt, score in res or []:
         txt = _norm_ocr(txt)
@@ -300,42 +354,77 @@ def _ocr_rapid(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
         b = (int(min(xs) / scale), int(min(ys) / scale), int(max(xs) / scale), int(max(ys) / scale))
         # "raw" keeps the exact characters (needed to pair glyphs with characters); "text" is readable for the rules
         words.append({"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b, "h": (b[3] - b[1]), "conf": float(score) * 100})
-    # Receipts right-align the amount next to the payee (PhonePe "MITHU_SINGH ....... ₹10").
-    # If the first pass already found the amount or reference number, skip expensive second and third passes.
-    has_key_info = any(re.search(r"₹|rs\.?|inr", w["text"], re.I) or re.search(r"\b\d{12}\b", w["text"]) for w in words)
-    if not has_key_info:
-        try:
-            W = ga.shape[1]
-            x0 = int(W * 0.6)
-            col = ga[:, x0:]
-            pad = 40
-            col = np.pad(col, ((0, 0), (pad, pad)), constant_values=int(np.median(col)))
-            res2, _ = _rapid()(np.stack([col, col, col], axis=2))
-            for box, txt, score in res2 or []:
-                txt = _norm_ocr(txt)
-                if not txt or float(score) < 0.45 or not re.search(r"\d", txt):
-                    continue
-                xs = [p[0] - pad + x0 for p in box]
-                ys = [p[1] for p in box]
-                b = (int(max(min(xs), x0) / scale), int(min(ys) / scale), int(max(xs) / scale), int(max(ys) / scale))
-                cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
-                if any(w["box"][0] - 2 <= cx <= w["box"][2] + 2 and w["box"][1] - 2 <= cy <= w["box"][3] + 2 for w in words):
-                    continue  # already read in the first pass
-                words.append({"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b, "h": (b[3] - b[1]),
-                              "conf": float(score) * 100, "second_pass": True})
-        except Exception:
-            pass
-        try:
-            words += _read_unread_right(ga, words, scale)
-        except Exception:
-            pass
+    words += _extra_passes(ga, words, scale)
     return _group_lines(words), g, scale
+
+
+def _extra_passes(ga: np.ndarray, words: list[dict], scale: float) -> list[dict]:
+    """Second and third reading passes, for BOTH OCR engines. They are what catches the most common edit: the
+    right-aligned amount beside the payee ("MITHU_SINGH ....... ₹10") that the first pass skips, and a digit erased
+    from it ("₹ 0"). Never skip them because some other ₹ amount was found: the debit row's ₹10 is always found,
+    and it's the OTHER copy of the amount that gets edited. Cost: ~0.3-0.6 s per screenshot."""
+    extra: list[dict] = []
+    for fn in (_right_column_pass, _read_unread_right):
+        try:
+            extra += fn(ga, words + extra, scale)
+        except Exception:
+            pass
+    return extra
+
+
+def _right_column_pass(ga: np.ndarray, words: list[dict], scale: float) -> list[dict]:
+    W = ga.shape[1]
+    x0 = int(W * 0.6)
+    col = ga[:, x0:]
+    pad = 40
+    col = np.pad(col, ((0, 0), (pad, pad)), constant_values=int(np.median(col)))
+    found = []  # (box in column coords, text, confidence 0..1)
+    if OCR_ENGINE == "rapidocr":
+        # strips here matter most: RapidOCR enlarges a narrow column to 736 px wide, and a full-height column
+        # at that size needs ~600 MB
+        for box, txt, score in _rapid_strips(col):
+            xs, ys = [p[0] for p in box], [p[1] for p in box]
+            found.append(((min(xs), min(ys), max(xs), max(ys)), txt, float(score)))
+    else:
+        d = pytesseract.image_to_data(Image.fromarray(col), config="--psm 11 --oem 1", output_type=pytesseract.Output.DICT)
+        for i, txt in enumerate(d["text"]):
+            if (txt or "").strip() and float(d["conf"][i]) >= 0:
+                x, y, bw, bh = d["left"][i], d["top"][i], d["width"][i], d["height"][i]
+                found.append(((x, y, x + bw, y + bh), txt, float(d["conf"][i]) / 100))
+    out = []
+    for (bx0, by0, bx1, by1), txt, conf in found:
+        txt = _norm_ocr(txt)
+        if not txt or conf < 0.45 or not re.search(r"\d", txt):
+            continue
+        # this pass looks for AMOUNTS only ("₹10", "R100", "2,450.00"); half-read words from a cut line are noise
+        if not re.fullmatch(r"(?:₹|rs\.?|inr|[%=zZ¥FR#2-7])?\s?[\d,]+(?:\.\d{1,2})?", txt.replace(" ", ""), re.I):
+            continue
+        b = (int(max(bx0 - pad + x0, x0) / scale), int(by0 / scale), int((bx1 - pad + x0) / scale), int(by1 / scale))
+        cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+        if any(w["box"][0] - 2 <= cx <= w["box"][2] + 2 and w["box"][1] - 2 <= cy <= w["box"][3] + 2 for w in words + out):
+            continue  # already read
+        out.append({"text": _spaced(txt), "raw": txt.replace(" ", ""), "box": b, "h": (b[3] - b[1]),
+                    "conf": conf * 100, "second_pass": True})
+    return out
+
+
+def _rec_crop(crop: np.ndarray) -> tuple[str, float]:
+    """Read one small, already-cropped piece of text with the active engine."""
+    if OCR_ENGINE == "rapidocr":
+        res, _ = _rapid().text_recognizer([np.stack([crop, crop, crop], axis=2)])
+        return (res[0][0], float(res[0][1])) if res else ("", 0.0)
+    big = Image.fromarray(crop).resize((crop.shape[1] * 2, crop.shape[0] * 2), Image.LANCZOS)
+    big = ImageOps.expand(big, border=20, fill=int(np.median(crop)))
+    d = pytesseract.image_to_data(big, config="--psm 7 --oem 1", output_type=pytesseract.Output.DICT)
+    parts = [(t, float(c)) for t, c in zip(d["text"], d["conf"]) if (t or "").strip() and float(c) >= 0]
+    if not parts:
+        return "", 0.0
+    return " ".join(t for t, _ in parts), sum(c for _, c in parts) / len(parts) / 100
 
 
 def _read_unread_right(ga: np.ndarray, words: list[dict], scale: float) -> list[dict]:
     """Ink to the right of a text row that no pass has read (e.g. an amount whose digit was erased, leaving '₹ 0').
     Crop each unread cluster and run the recogniser on it alone."""
-    eng = _rapid()
     H, W = ga.shape[:2]
     out, done = [], []
     for w in sorted(words, key=lambda w: w["box"][1]):
@@ -371,8 +460,7 @@ def _read_unread_right(ga: np.ndarray, words: list[dict], scale: float) -> list[
         pad = int((y1 - y0) * 0.4)
         x0c, x1c = max(0, int(right) + a - pad), min(W, int(right) + b + pad)
         crop = ga[max(0, y0 - pad):min(H, y1 + pad), x0c:x1c]
-        res, _ = eng.text_recognizer([np.stack([crop, crop, crop], axis=2)])
-        txt, conf = (res[0] if res else ("", 0))
+        txt, conf = _rec_crop(crop)
         txt = _norm_ocr(txt)
         if not re.search(r"\d", txt):
             continue
@@ -431,14 +519,9 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
                 words.append(w)
             elif w["conf"] > words[clash]["conf"]:
                 words[clash] = w
-        # Fast exit: if first pass already found amount/currency and UTR or reference, skip subsequent slow passes!
-        has_key_info = any(re.search(r"₹|rs\.?|inr", w["text"], re.I) or re.search(r"\b\d{12}\b", w["text"]) for w in words)
-        if has_key_info and len(words) >= 5:
-            break
 
-    # Extra pass over the top of the screen only if key info was not found in the main pass
-    has_key_info = any(re.search(r"₹|rs\.?|inr", w["text"], re.I) or re.search(r"\b\d{12}\b", w["text"]) for w in words)
-    if not has_key_info:
+    # Extra pass over the top of the screen, binarised: apps print the date/status there in small text on coloured bars.
+    if True:
         try:
             import cv2
             ga = np.asarray(g)
@@ -463,6 +546,7 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
         except Exception:
             pass
 
+    words += _extra_passes(np.asarray(g), words, scale)
     return _group_lines(words), g, scale
 
 
@@ -791,6 +875,16 @@ def parse_bank_sms(text: str) -> dict:
     elif re.search(r"debited|sent|paid|withdrawn", low):
         out["direction"] = "debit"
     return out
+
+
+def _trim_memory() -> None:
+    """Give memory freed by the OCR run back to the OS (glibc keeps it otherwise), so the steady-state size of the
+    server stays low between checks."""
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
 
 
 def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_amount: float | None = None,
@@ -1185,7 +1279,9 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
         "limitations": [
             "Checks look for common editing mistakes and impossible details. A carefully made fake can pass, and "
             "screenshots forwarded on WhatsApp lose their metadata and are recompressed. Always confirm the money in your own bank or UPI app."
-            + ("" if HAS_OCR else " Text checks were skipped because the OCR engine (tesseract) is not installed on the server.")
+            + ("" if HAS_OCR else " Text checks were skipped because no OCR engine is installed on the server (pip install -r requirements.txt).")
+            + (" This server reads text with Tesseract (reduced-accuracy mode); some edits can be missed and genuine receipts can be flagged. "
+               "Confirm in your bank app." if OCR_ENGINE == "tesseract" else "")
         ],
     }
 
