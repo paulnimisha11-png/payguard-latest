@@ -138,3 +138,13 @@ html[lang="hi"] .cyber h1, html[lang="kn"] .cyber h1, html[lang="ta"] .cyber h1,
   .cyber .acct-strip { border-radius: 14px; }
   .cyber .mode { padding: 10px 4px; font-size: .78rem; overflow-wrap: anywhere; }
 }
+
+/* scam memory: glass cards like the rest of the dark theme */
+.cyber .mitem { background: rgba(13, 14, 20, .78); border-color: rgba(255, 255, 255, .07); border-left-color: var(--med);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); transition: border-color .3s, transform .3s; }
+.cyber .mitem.danger { border-left-color: var(--c-red); box-shadow: -8px 0 24px -18px var(--c-red-glow); }
+.cyber .mitem:hover { border-color: rgba(255, 255, 255, .12); transform: translateY(-1px); }
+.cyber .btn.ghostish { background: rgba(255, 255, 255, .04); color: var(--c-ink); border: 1px solid rgba(255, 255, 255, .1); box-shadow: none; }
+.cyber .memhit { background: rgba(10, 0, 4, .55); color: #fff; border: 1px solid rgba(255, 255, 255, .25); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.cyber .memhit a { color: #ffd8de; }
+.cyber .mlist { animation: rise .7s var(--ease-out) both; }

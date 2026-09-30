@@ -855,6 +855,11 @@ async def trends_page():
     return FileResponse(os.path.join(STATIC, "trends.html"))
 
 
+@app.get("/memory")
+async def memory_page():
+    return FileResponse(os.path.join(STATIC, "memory.html"))
+
+
 @app.get("/family")
 async def family_page():
     return FileResponse(os.path.join(STATIC, "family.html"))

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Scam Trends — PayGuard</title>
-<meta name="description" content="Live scam trends from PayGuard users: which scams are rising and which UPI IDs, numbers and websites people report.">
+<title>Scam Memory — PayGuard</title>
+<meta name="description" content="Your own scam history on this device: every scam you checked, and a warning when a new one looks like it.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z' fill='%23ff1f3d'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,9 +29,9 @@
   <div class="top-r">
     <nav class="topnav" aria-label="Sections">
       <a href="/app" data-t="nav_check">Check</a>
-      <a href="/trends" class="on" data-t="nav_trends">Trends</a>
+      <a href="/trends" data-t="nav_trends">Trends</a>
       <a href="/family" id="nav-family"><span data-t="nav_family">Family</span><b id="fam-badge" class="badge" hidden></b></a>
-      <a href="/memory" data-memnav>My scams</a>
+      <a href="/memory" class="on" data-memnav>My scams</a>
     </nav>
     <div class="lang" role="group" aria-label="Language">
       <button data-lang="en" class="on">EN</button><button data-lang="hi">हिंदी</button><button data-lang="kn">ಕನ್ನಡ</button><button data-lang="ta">தமிழ்</button><button data-lang="te">తెలుగు</button><button data-lang="mr">मराठी</button><button data-lang="bn">বাংলা</button>
@@ -40,49 +40,19 @@
   </div>
 </header>
 
-<main id="trends">
+<main id="memory-page">
   <div class="page-head">
-    <h1 data-t="title">Scam trends</h1>
-    <p data-t="sub">What PayGuard users are checking and reporting right now. No names, messages or screenshots are ever shown here.</p>
+    <h1 data-t="title">Scam memory</h1>
+    <p data-t="sub">Scams you checked on this device. If a new one looks like any of them, PayGuard warns you. Saved only on this phone or computer, never sent anywhere.</p>
   </div>
-  <p id="demo" class="banner" hidden data-t="demo">This page currently includes demo data for a presentation.</p>
-  <p id="load-err" class="banner" hidden></p>
-
-  <div class="kpis" id="kpis"></div>
-
-  <h2 class="sec-t" data-t="chart_t">Scams caught per day</h2>
-  <div class="card">
-    <p class="dim small" data-t="chart_sub">Dangerous or suspicious results in the last 14 days. Hover or tap a bar for details.</p>
-    <div class="chart" id="chart"></div>
-    <details class="table-view"><summary data-t="table">Show as table</summary><div id="chart-table"></div></details>
-  </div>
-
-  <div id="rising-wrap" hidden>
-    <h2 class="sec-t" data-t="rising_t">Rising this week</h2>
-    <div class="rising" id="rising"></div>
-  </div>
-
-  <h2 class="sec-t" data-t="types_t">Scam types this week</h2>
-  <div class="card"><ul class="types" id="types"></ul></div>
-
-  <h2 class="sec-t" data-t="top_t">Most reported</h2>
-  <p class="dim small" id="rule"></p>
-  <div class="grid two" id="top"></div>
-
-  <h2 class="sec-t" data-t="lookup_t">Were you given a UPI ID, number or website?</h2>
-  <form class="card" id="lookup">
-    <div class="row">
-      <input class="field" id="q" autocomplete="off" spellcheck="false" placeholder="name@ybl · 98xxxxxxxx · example.com" aria-label="UPI ID, phone number or website">
-      <button class="btn" type="submit" data-t="lookup_btn">Check</button>
-    </div>
-    <p class="lookup-res" id="lookup-res" hidden></p>
-  </form>
-  <p class="privacy" id="updated"></p>
+  <p id="no-storage" class="banner" hidden data-t="no_storage"></p>
+  <div class="kpis mkpis" id="mkpis"></div>
+  <div id="mlist" class="mlist"></div>
+  <p class="mfoot"><button class="btn small ghostish" id="mclear" type="button" data-t="clear" hidden>Clear all</button></p>
 </main>
 
 <script src="/device.js"></script>
 <script src="/pgauth.js"></script>
-<script src="/trends.js"></script>
 <script src="/memory.js"></script>
 <script src="/pwa.js"></script>
 </body>

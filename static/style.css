@@ -492,3 +492,31 @@ details.table-view th:first-child, details.table-view td:first-child { text-alig
 .steps-mini li::before { content: counter(s); position: absolute; left: 0; top: 5px; width: 24px; height: 24px; border-radius: 50%; background: var(--brand-soft);
   color: var(--brand); font-weight: 800; font-size: .8rem; display: grid; place-items: center; }
 .danger-txt { color: var(--crit); }
+
+/* ---------- scam memory ---------- */
+.memhit { margin: 12px 0 0; padding: 12px 14px; border-radius: 14px; background: rgba(255,255,255,.95); color: #7a0c20; display: grid; gap: 4px; font-size: .92rem; }
+.memhit b { font-size: 1rem; }
+.memhit a { color: #b3122f; font-weight: 700; }
+.mkpis { margin: 4px 0 8px; }
+.mmonth { margin: 22px 0 10px; font-size: .95rem; color: var(--dim); text-transform: capitalize; }
+.mlist { display: grid; gap: 10px; }
+.mitem { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: start; padding: 16px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--med); }
+.mitem.danger { border-left-color: var(--crit); }
+.mico { font-size: 1.5rem; line-height: 1; }
+.mbody { min-width: 0; }
+.mbody p { margin: 4px 0 0; }
+.mtop { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mtop b { overflow-wrap: anywhere; }
+.mpill { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 3px 8px; border-radius: 999px; background: var(--med-soft); color: var(--med); }
+.mitem.danger .mpill { background: var(--crit-soft); color: var(--crit); }
+.mchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mchips code { font: .78rem var(--mono, monospace); padding: 3px 8px; border-radius: 8px; background: rgba(255,255,255,.05); border: 1px solid var(--line); overflow-wrap: anywhere; }
+.mact { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.btn.ghostish { background: rgba(255,255,255,.06); color: var(--ink); box-shadow: none; border: 1px solid var(--line); }
+.mempty { text-align: center; display: grid; gap: 12px; justify-items: center; }
+.mfoot { text-align: center; margin-top: 18px; }
+@media (max-width: 560px) {
+  .mitem { grid-template-columns: auto 1fr; }
+  .mact { grid-column: 1 / -1; flex-direction: row; }
+}

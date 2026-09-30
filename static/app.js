@@ -429,6 +429,7 @@
     pill.textContent = t("reported_by", { n });
     window.renderVote && window.renderVote(r);
     window.renderPay && window.renderPay(r);
+    window.renderMemory && window.renderMemory(r);
     renderGuard(r);
   }
 
