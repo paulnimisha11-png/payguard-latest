@@ -160,3 +160,22 @@ def test_failure_reason_is_visible_in_health():
     assert last["status"] == "error" and "API key not valid" in last["detail"] and "test-key" not in json.dumps(last)
     gemini(lambda r: httpx.Response(200, json={"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": '{"risk_sum'}]}}]}))
     assert asyncio.run(reasoning.analyze(rep))["reason"] == "unreadable reply (MAX_TOKENS)"
+
+
+def test_busy_model_falls_back_to_the_next_flash_model():
+    calls = []
+
+    def h(req):
+        calls.append(req.url.path.split("/models/")[1].split(":")[0])
+        if "gemini-3.8-flash" in req.url.path:          # what Render saw: "high demand"
+            return httpx.Response(503, json={"error": {"message": "This model is currently experiencing high demand."}})
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": json.dumps(REPLY)}]}}]})
+    gemini(h)
+    rep = {"app": {}, "verdict": {"level": "danger", "score": 90, "headline": {"en": "x"}}, "findings": []}
+    res = asyncio.run(reasoning.analyze(rep))
+    assert res["status"] == "ok" and res["model"] == "gemini-3.6-flash" and calls == ["gemini-3.8-flash", "gemini-3.6-flash"]
+    assert reasoning.LAST["tried"] == ["gemini-3.8-flash", "gemini-3.6-flash"]
+    # every model busy: a clear error, still no exception
+    gemini(lambda r: httpx.Response(503, json={"error": {"message": "high demand"}}))
+    res = asyncio.run(reasoning.analyze(rep))
+    assert res["status"] == "error" and res["reason"] == "http 503" and len(reasoning.LAST["tried"]) == 3

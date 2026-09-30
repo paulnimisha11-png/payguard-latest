@@ -9,7 +9,8 @@ so a scan never fails or slows down beyond GEMINI_TIMEOUT because of this layer.
 Environment:
   GEMINI_API_KEY   required to turn the layer on (never hard-coded, never logged)
   GEMINI_MODEL     default "gemini-3.8-flash"
-  GEMINI_TIMEOUT   seconds, default 25
+  GEMINI_TIMEOUT   seconds for the whole explanation, default 25
+  GEMINI_FALLBACK_MODELS  comma-separated, tried in order when a model is busy (default gemini-3.6-flash,gemini-3.5-flash-lite)
 """
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ import time
 import httpx
 
 DEFAULT_MODEL = "gemini-3.8-flash"
+FALLBACK_MODELS = ("gemini-3.6-flash", "gemini-3.5-flash-lite")   # used when the primary is busy
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 _transport: httpx.AsyncBaseTransport | None = None      # tests swap in an httpx.MockTransport
 
@@ -136,10 +138,10 @@ def _parse(text: str) -> dict | None:
 LAST: dict = {}          # last call's outcome, shown in /api/health for debugging (never contains the key)
 
 
-def _record(res: dict, detail: str = "") -> dict:
+def _record(res: dict, detail: str = "", tried: list | None = None) -> dict:
     LAST.clear()
     LAST.update({"status": res["status"], "reason": res.get("reason"), "detail": detail[:300] or None,
-                 "model": model(), "at": int(time.time())})
+                 "model": res.get("model", model()), "tried": tried or [], "at": int(time.time())})
     if res["status"] != "ok":
         print(f"[gemini] {res['status']} {res.get('reason') or ''} {detail[:300]}", flush=True)   # shows in Render logs
     return res
@@ -171,29 +173,56 @@ def _google_error(r: httpx.Response) -> str:
         return r.text[:300]
 
 
+RETRYABLE = {429, 500, 502, 503, 504}          # busy / rate-limited / flaky: try the next model
+
+
+def models() -> list[str]:
+    """Primary model, then fallbacks for when Google says a model is busy (HTTP 503 'high demand')."""
+    fb = os.environ.get("GEMINI_FALLBACK_MODELS", ",".join(FALLBACK_MODELS))
+    out = []
+    for m in [model(), *fb.split(",")]:
+        m = m.strip()
+        if m and m not in out:
+            out.append(m)
+    return out
+
+
 async def analyze(rep: dict) -> dict:
     """Returns {"status": "ok", "model", "ms", **FIELDS} or {"status": "disabled"|"timeout"|"error", ...}.
-    Never raises."""
+    Never raises. Tries each model in models() within one overall GEMINI_TIMEOUT budget."""
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not key:
         return {"status": "disabled"}
     started = time.monotonic()
     try:
-        timeout = float(os.environ.get("GEMINI_TIMEOUT", "25"))
+        budget = float(os.environ.get("GEMINI_TIMEOUT", "25"))
     except ValueError:
-        timeout = 25.0
-    url = ENDPOINT.format(model=model())
+        budget = 25.0
     headers = {"x-goog-api-key": key, "content-type": "application/json"}
+    chain = models()
+    tried = []
+    last = {"status": "error", "reason": "no model answered", "model": chain[0]}
     detail = ""
-    try:
-        async with httpx.AsyncClient(timeout=timeout, transport=_transport) as c:
-            for i, body in enumerate(_bodies(rep)):
-                r = await c.post(url, json=body, headers=headers)
-                if r.status_code == 400 and i == 0:            # unsupported field: try the minimal request once
-                    detail = _google_error(r)
+    async with httpx.AsyncClient(transport=_transport) as c:
+        for n, m in enumerate(chain):
+            left = budget - (time.monotonic() - started)
+            if n and left < 1.5:                  # the first model is always tried; fallbacks need time left
+                break
+            # leave time for the fallbacks: a busy primary shouldn't eat the whole budget
+            per_try = left if n == len(chain) - 1 else min(left, max(6.0, left * 0.55))
+            tried.append(m)
+            try:
+                for i, body in enumerate(_bodies(rep)):
+                    r = await c.post(ENDPOINT.format(model=m), json=body, headers=headers, timeout=per_try)
+                    if r.status_code == 400 and i == 0:      # unsupported field on this model: minimal request once
+                        detail = _google_error(r)
+                        continue
+                    break
+                if r.status_code in RETRYABLE or r.status_code == 404:   # busy, or model not available to this key
+                    last, detail = {"status": "error", "reason": f"http {r.status_code}", "model": m}, _google_error(r)
                     continue
                 if r.status_code != 200:
-                    return _record({"status": "error", "reason": f"http {r.status_code}", "model": model()}, _google_error(r))
+                    return _record({"status": "error", "reason": f"http {r.status_code}", "model": m}, _google_error(r), tried)
                 data = r.json()
                 cand = (data.get("candidates") or [{}])[0]
                 parts = (cand.get("content") or {}).get("parts") or []
@@ -201,10 +230,11 @@ async def analyze(rep: dict) -> dict:
                 result = _parse(text)
                 if not result:
                     why = cand.get("finishReason") or (data.get("promptFeedback") or {}).get("blockReason") or "no JSON"
-                    return _record({"status": "error", "reason": f"unreadable reply ({why})", "model": model()}, text[:200])
-                return _record({"status": "ok", "model": model(), "ms": int((time.monotonic() - started) * 1000), **result})
-        return _record({"status": "error", "reason": "http 400", "model": model()}, detail)
-    except httpx.TimeoutException:
-        return _record({"status": "timeout", "model": model()}, f"no reply within {timeout:g}s")
-    except Exception as e:                                          # network down, bad JSON envelope, ...
-        return _record({"status": "error", "reason": type(e).__name__, "model": model()}, str(e)[:200])
+                    last, detail = {"status": "error", "reason": f"unreadable reply ({why})", "model": m}, text[:200]
+                    continue
+                return _record({"status": "ok", "model": m, "ms": int((time.monotonic() - started) * 1000), **result}, "", tried)
+            except httpx.TimeoutException:
+                last, detail = {"status": "timeout", "model": m}, f"no reply within {per_try:.0f}s"
+            except Exception as e:                                  # network down, bad JSON envelope, ...
+                last, detail = {"status": "error", "reason": type(e).__name__, "model": m}, str(e)[:200]
+    return _record(last, detail, tried)
