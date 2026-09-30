@@ -192,7 +192,7 @@
     copied: "Message copied", no_voice: "No voice for this language is installed on your device", stop: "Stop",
     reported_by: "🚩 Reported as a scam by {n} people",
     evidence: "Show evidence", stats: "{n} app files checked so far · {d} found dangerous",
-    shot_label: "Payment screenshot", shot_read: "What we read", shot_marked: "Areas marked in red look edited",
+    f_upi: "UPI ID", shot_label: "Payment screenshot", shot_read: "What we read", shot_marked: "Areas marked in red look edited",
     f_app: "App", f_status: "Status", f_amount: "Amount", f_utr: "Reference number (UTR)", f_date: "Date", f_payee: "Paid to", not_read: "couldn't read",
     flow_you: "You", flow_to: "Money goes to", flow_out: "⚠ Money leaves YOUR account — this is not how you receive money.",
     dest_t: "This will take you to", qr_content: "What's inside the QR", what_t: "What this QR does",
@@ -341,6 +341,7 @@
     [".triad-card", "#tech"].forEach((sel) => ($(sel).hidden = isQR || isShot || isMsg));
     $("#qrcard").hidden = !isQR;
     $("#shotcard").hidden = !isShot;
+    $("#verifycard").hidden = !(isShot && r.verification);
     $("#msgcard").hidden = !isMsg;
     if (isMsg) {
       $("#lure").hidden = true; $("#seen").hidden = true; $("#app-icon").hidden = true;
