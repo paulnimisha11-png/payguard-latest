@@ -36,6 +36,14 @@ def get(sha256: str, engine: str | None = None) -> dict | None:
     return rep
 
 
+def update_report(rep: dict) -> None:
+    """Rewrite a cached report's JSON (e.g. to add the AI explanation) without counting it as a new sighting."""
+    clean = {k: v for k, v in rep.items() if k not in ("community", "cached", "family_alerted", "reports")}
+    with _lock:
+        _db.execute("UPDATE reports SET report=? WHERE sha256=?", (json.dumps(clean), rep["file"]["sha256"]))
+        _db.commit()
+
+
 def touch(sha256: str) -> None:
     with _lock:
         _db.execute("UPDATE reports SET seen_count=seen_count+1, last_seen=? WHERE sha256=?", (time.time(), sha256))

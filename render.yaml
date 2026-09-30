@@ -20,6 +20,11 @@ services:
         value: "1"
       - key: MKL_NUM_THREADS
         value: "1"
+      # AI analyst for APK scans (Gemini). Optional; the scanner works without it.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: "gemini-3.8-flash"
       # ---- Accounts (sign in, login-alert emails). Set these in the Render dashboard; they are secrets. ----
       # Render's free disk is wiped on every deploy/restart, so accounts must live in a hosted Postgres
       # (free: Supabase → Project settings → Database → Connection string → "Transaction pooler", port 6543).

@@ -41,6 +41,8 @@ Deploy: `render.yaml` (Render → New → Blueprint), or any Docker host.
 |---|---|
 | `ANTHROPIC_API_KEY` | "Send to family" message is written by Claude in natural Hindi/Kannada/English (falls back to built-in templates without it) |
 | `ANTHROPIC_MODEL` | default `claude-haiku-4-5-20251001` |
+| `GEMINI_API_KEY` | Turns on the **AI analyst** for APK scans: Gemini explains the rule findings in plain words (summary, why it looks suspicious, innocent explanations, what to do). Only extracted facts are sent, never the APK; secrets such as bot tokens are redacted. The verdict and score still come only from PayGuard's rules; if Gemini is slow or down the scan works exactly as before |
+| `GEMINI_MODEL` / `GEMINI_TIMEOUT` | default `gemini-3.8-flash` / 12 seconds |
 | `VT_API_KEY` | Adds a VirusTotal hash lookup (how many antivirus engines already flag the file) |
 | `APKXRAY_MAX_MB` / `APKXRAY_TIMEOUT` / `APKXRAY_RATE_PER_MIN` / `APKXRAY_WORKERS` | 150 MB / 120 s / 12 scans per IP per minute / 2 worker processes |
 | `APKXRAY_DB` | SQLite path for the report cache (default `data/apkxray.db`) |

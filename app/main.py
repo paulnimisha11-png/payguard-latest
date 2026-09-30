@@ -40,7 +40,7 @@ from .qr.analyzer import analyze_payload, decode_qr_image
 from .complaints import builder as cb
 from .screenshot.analyzer import analyze_screenshot
 from .message import analyze_message
-from . import auth, family, trends
+from . import auth, family, reasoning, trends
 from .complaints.community import apply_reports
 from .complaints.pdf import render as render_pdf
 
@@ -168,6 +168,10 @@ async def scan(request: Request, file: UploadFile = File(...)):
             cached["community"]["seen_count"] += 1
             cached["cached"] = True
             cached["file"]["name"] = name
+            if reasoning.enabled() and (cached.get("ai") or {}).get("status") != "ok":
+                cached["ai"] = await reasoning.analyze(cached)        # first time with a key, or last call failed
+                if cached["ai"]["status"] == "ok":
+                    store.update_report(cached)
             return _after_check(request, cached)
 
         loop = asyncio.get_running_loop()
@@ -182,9 +186,15 @@ async def scan(request: Request, file: UploadFile = File(...)):
                 raise HTTPException(422, str(e))
             raise HTTPException(422, f"Could not analyse this file: {type(e).__name__}")
 
-        rep["external"] = {"virustotal": await _virustotal(digest),
-                           "virustotal_url": f"https://www.virustotal.com/gui/file/{digest}"}
-        store.put(rep)
+        # Extra layers run side by side and can only add information: the verdict and score above are final.
+        vt, ai = await asyncio.gather(_virustotal(digest), reasoning.analyze(rep))
+        rep["external"] = {"virustotal": vt, "virustotal_url": f"https://www.virustotal.com/gui/file/{digest}"}
+        if ai["status"] == "ok":
+            rep["ai"] = ai
+            store.put(rep)
+        else:
+            store.put(rep)                     # don't cache a failed explanation, so the next check retries
+            rep["ai"] = ai
         rep["cached"] = False
         return _after_check(request, rep)
     finally:
@@ -527,6 +537,7 @@ async def stats():
 async def health():
     from .screenshot.analyzer import HAS_OCR, OCR_ENGINE
     return {"ok": True, "engine": ENGINE_VERSION, "llm": bool(os.environ.get("ANTHROPIC_API_KEY")),
+            "apk_reasoning": reasoning.model() if reasoning.enabled() else None,
             "virustotal": bool(VT_KEY), "ocr": HAS_OCR, "ocr_engine": OCR_ENGINE, "android_apk": os.path.isfile(APK_PATH) or bool(APK_URL), "service": "payguard",
             "push_recent": [f"{h}:{st}" for h, st in family.PUSH_LOG[-5:]], "tts": "espeak-ng" if ESPEAK else None, **auth.health()}
 

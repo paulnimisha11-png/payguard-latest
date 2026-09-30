@@ -18,6 +18,7 @@ one-tap complaints, the trends page, family guardian mode and the Android UPI in
 | Sign-in terminal | Red/black "authentication terminal" with matrix rain, login / register tabs, reset flow | `static/login.*`, `static/pgauth.js` |
 | Account page | Profile, email alerts toggle, password, devices, history, delete | `static/account.*` |
 | Verdict sentinel | The hooded figure appears on every scanner's result: blue with a scanning beam while checking, then red light rays and glowing eyes for a scam, yellow for suspicious, green for safe (APK, QR/UPI, screenshot and message checks) | `static/hood.js`, `static/sentinel.*` |
+| APK AI analyst | After the rule-based APK analysis, Gemini (`gemini-3.8-flash`) gets the extracted facts + findings + score (never the file) and returns a structured explanation shown under the verdict. Rules stay the only source of the score; scans work unchanged if the AI is off or down | `app/reasoning.py`, `static/app.js`, `tests/test_reasoning.py` |
 | App theme | Black / red / green / blue theme for the scanner, radar, family and admin pages; user menu on every page | `static/cyber.css`, `static/theme.css` |
 
 ## How to check it
