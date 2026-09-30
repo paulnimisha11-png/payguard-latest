@@ -27,6 +27,9 @@ services:
         value: "gemini-3.8-flash"
       - key: GEMINI_FALLBACK_MODELS   # used when the main model is busy ("high demand")
         value: "gemini-3.6-flash,gemini-3.5-flash-lite"
+      # Optional URL reputation for the SMS checker (Google Safe Browsing Lookup API). Server-side only.
+      - key: SAFE_BROWSING_API_KEY
+        sync: false
       # ---- Sign-in (Clerk). Set the values in the Render dashboard (Clerk Dashboard → API keys); never commit them. ----
       - key: CLERK_PUBLISHABLE_KEY   # pk_test_… (public; the server hands it to the browser)
         sync: false

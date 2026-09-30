@@ -40,6 +40,10 @@ from .qr.analyzer import analyze_payload, decode_qr_image
 from .complaints import builder as cb
 from .screenshot.analyzer import analyze_screenshot
 from .message import analyze_message
+from .message import pipeline as msg_pipeline
+from .message import risk as msg_risk
+from .message import ai as msg_ai
+from .message import threatintel as msg_ti
 from . import auth, family, reasoning, trends
 from .ml import upi_model as qr_ml
 from .complaints.community import apply_reports
@@ -130,6 +134,8 @@ def _after_check(request: Request, rep: dict) -> dict:
     rep = apply_reports(rep)
     if rep.get("kind") == "qr":
         rep = qr_ml.apply(rep)            # UPI QRs: the calibrated ML probability is the primary verdict
+    elif rep.get("kind") == "msg":
+        rep = msg_risk.finalize(rep)      # messages: the layered risk engine has the final word (after community reports)
     trends.record(rep)
     cur = auth.current(request)
     if cur:
@@ -272,15 +278,21 @@ async def qr_text(request: Request, req: QRText):
 
 class MessageIn(BaseModel):
     text: str
+    sender: str | None = None          # SMS sender (header like VM-SBIINB or a number), if the app knows it
+    received_at: str | int | None = None
+    use_ai: bool = True                # the user can turn the Gemini reading off
+    source: str | None = None          # "android_share", "android_paste", "web"... (not stored)
 
 
 @app.post("/api/message")
 async def check_message(request: Request, m: MessageIn):
+    """Layered SMS pipeline: rules -> URLs -> sender -> Scam Memory -> threat intel -> risk engine -> Gemini (only if
+    ambiguous) -> final result. Works without Gemini or Safe Browsing (their status is reported)."""
     _rate_limit(_client_ip(request))
     if len(m.text or "") > 20000:
         raise HTTPException(422, "That message is too long. Paste just the suspicious message.")
     try:
-        rep = analyze_message(m.text)
+        rep = await msg_pipeline.check(m.text, sender=(m.sender or "")[:40] or None, received_at=m.received_at, use_ai=m.use_ai)
     except ValueError as e:
         raise HTTPException(422, str(e))
     return _after_check(request, rep)
@@ -541,7 +553,7 @@ async def health():
     from .screenshot.analyzer import HAS_OCR, OCR_ENGINE
     return {"ok": True, "engine": ENGINE_VERSION, "llm": bool(os.environ.get("ANTHROPIC_API_KEY")),
             "apk_reasoning": reasoning.model() if reasoning.enabled() else None,
-            "qr_ml_model": (lambda m: f"{m['model']['type']} {m['version']}" + (" (prototype)" if m.get("prototype") else ""))(qr_ml.load()) if qr_ml.load() else None, "apk_reasoning_last": reasoning.LAST or None,
+            "qr_ml_model": (lambda m: f"{m['model']['type']} {m['version']}" + (" (prototype)" if m.get("prototype") else ""))(qr_ml.load()) if qr_ml.load() else None, "apk_reasoning_last": reasoning.LAST or None, "sms_ai": msg_ai.enabled(), "sms_ai_last": msg_ai.LAST or None, "threat_intel": msg_ti.SERVICE if msg_ti.enabled() else None, "threat_intel_last": msg_ti.LAST or None,
             "virustotal": bool(VT_KEY), "ocr": HAS_OCR, "ocr_engine": OCR_ENGINE, "android_apk": os.path.isfile(APK_PATH) or bool(APK_URL), "service": "payguard",
             "push_recent": [f"{h}:{st}" for h, st in family.PUSH_LOG[-5:]], "tts": "espeak-ng" if ESPEAK else None, **auth.health()}
 

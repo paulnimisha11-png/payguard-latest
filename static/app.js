@@ -10,7 +10,7 @@
     hi: {
       eyebrow: "पैसे भेजने, टैप या इंस्टॉल करने से पहले ठगी रोकें",
       nav_trends: "ट्रेंड्स", nav_family: "परिवार", mode_msg: "मैसेज / SMS",
-      msg_label: "आपको मिला SMS, WhatsApp मैसेज या ईमेल यहाँ पेस्ट करें", msg_paste: "पेस्ट करें", msg_example: "उदाहरण देखें", msg_check: "मैसेज जाँचें",
+      msg_label: "आपको मिला SMS, WhatsApp मैसेज या ईमेल यहाँ पेस्ट करें", msg_paste: "पेस्ट करें", msg_example: "उदाहरण देखें", msg_check: "मैसेज जाँचें", msg_sender: "भेजने वाला (वैकल्पिक)", msg_ai: "शक होने पर AI से भी पूछें",
       msg_privacy: "हम आपका मैसेज सेव नहीं करते। सिर्फ़ जाँचते हैं, और रिपोर्ट करने पर सिर्फ़ ठग के लिंक, UPI ID और नंबर गिने जाते हैं — आपका टेक्स्ट कभी नहीं।",
       msg_res: "मैसेज", msg_asks: "यह आपसे क्या करवाना चाहता है", msg_found: "इसमें मिले लिंक, UPI ID और नंबर", msg_marked: "ख़तरे वाले हिस्से हाइलाइट किए गए हैं",
       l_link: "लिंक", l_upi: "UPI ID", l_phone: "मोबाइल नंबर", l_tollfree: "टोल-फ़्री नंबर", l_official: "आधिकारिक", l_notofficial: "आधिकारिक नहीं", l_reported: "{n} रिपोर्ट",
@@ -39,7 +39,7 @@
     kn: {
       eyebrow: "ಪಾವತಿಸುವ, ಟ್ಯಾಪ್ ಅಥವಾ ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವ ಮೊದಲೇ ವಂಚನೆ ತಡೆಯಿರಿ",
       nav_trends: "ಟ್ರೆಂಡ್‌ಗಳು", nav_family: "ಕುಟುಂಬ", mode_msg: "ಸಂದೇಶ / SMS",
-      msg_label: "ನಿಮಗೆ ಬಂದ SMS, WhatsApp ಸಂದೇಶ ಅಥವಾ ಇಮೇಲ್ ಇಲ್ಲಿ ಅಂಟಿಸಿ", msg_paste: "ಅಂಟಿಸಿ", msg_example: "ಉದಾಹರಣೆ ನೋಡಿ", msg_check: "ಸಂದೇಶ ಪರಿಶೀಲಿಸಿ",
+      msg_label: "ನಿಮಗೆ ಬಂದ SMS, WhatsApp ಸಂದೇಶ ಅಥವಾ ಇಮೇಲ್ ಇಲ್ಲಿ ಅಂಟಿಸಿ", msg_paste: "ಅಂಟಿಸಿ", msg_example: "ಉದಾಹರಣೆ ನೋಡಿ", msg_check: "ಸಂದೇಶ ಪರಿಶೀಲಿಸಿ", msg_sender: "ಕಳುಹಿಸಿದವರು (ಐಚ್ಛಿಕ)", msg_ai: "ಅನುಮಾನವಿದ್ದರೆ AI ಗೂ ಕೇಳಿ",
       msg_privacy: "ನಾವು ನಿಮ್ಮ ಸಂದೇಶ ಉಳಿಸುವುದಿಲ್ಲ. ಕೇವಲ ಪರಿಶೀಲಿಸುತ್ತೇವೆ; ವರದಿ ಮಾಡಿದರೆ ವಂಚಕರ ಲಿಂಕ್, UPI ID, ನಂಬರ್ ಮಾತ್ರ ಎಣಿಸುತ್ತೇವೆ — ನಿಮ್ಮ ಪಠ್ಯ ಎಂದಿಗೂ ಅಲ್ಲ.",
       msg_res: "ಸಂದೇಶ", msg_asks: "ಇದು ನಿಮ್ಮಿಂದ ಏನು ಮಾಡಿಸಲು ಬಯಸುತ್ತದೆ", msg_found: "ಇದರಲ್ಲಿರುವ ಲಿಂಕ್, UPI ID ಮತ್ತು ನಂಬರ್‌ಗಳು", msg_marked: "ಅಪಾಯದ ಭಾಗಗಳನ್ನು ಹೈಲೈಟ್ ಮಾಡಲಾಗಿದೆ",
       l_link: "ಲಿಂಕ್", l_upi: "UPI ID", l_phone: "ಮೊಬೈಲ್ ನಂಬರ್", l_tollfree: "ಟೋಲ್-ಫ್ರೀ ನಂಬರ್", l_official: "ಅಧಿಕೃತ", l_notofficial: "ಅಧಿಕೃತವಲ್ಲ", l_reported: "{n} ವರದಿ",
@@ -343,6 +343,7 @@
     $("#shotcard").hidden = !isShot;
     $("#verifycard").hidden = !(isShot && r.verification);
     $("#msgcard").hidden = !isMsg;
+    $("#riskcard").hidden = !(isMsg && r.risk);
     if (isMsg) {
       $("#lure").hidden = true; $("#seen").hidden = true; $("#app-icon").hidden = true;
       const d = r.details;

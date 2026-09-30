@@ -137,4 +137,13 @@
     <string name="fam_status_protected">ನೀವು ವಂಚನೆಗೆ ಸಿಲುಕಿದರೆ %1$s ಅವರಿಗೆ ಎಚ್ಚರಿಕೆ ಹೋಗುತ್ತದೆ.</string>
     <string name="notif_channel">ಕುಟುಂಬ ಎಚ್ಚರಿಕೆಗಳು</string>
     <string name="notif_channel_desc">ನೀವು ರಕ್ಷಿಸುವವರು ವಂಚನೆಗೆ ಸಿಲುಕುವಾಗ</string>
+    <string name="msg_sender_hint">ಕಳುಹಿಸಿದವರು, ಗೊತ್ತಿದ್ದರೆ (ಉದಾ. VM-SBIINB ಅಥವಾ +91 98…)</string>
+    <string name="risk_level">ಅಪಾಯದ ಮಟ್ಟ</string>
+    <string name="risk_points">%1$d/100 ಅಪಾಯ ಅಂಕಗಳು (ಸಂಭವನೀಯತೆ ಅಲ್ಲ)</string>
+    <string name="risk_factors">ಏಕೆ</string>
+    <string name="risk_sender">ಕಳುಹಿಸಿದವರು</string>
+    <string name="risk_ai">AI ಓದು</string>
+    <string name="risk_memory">Scam Memory</string>
+    <string name="risk_ti">ಬೆದರಿಕೆ ಮಾಹಿತಿ</string>
+    <string name="risk_safe">ಏನು ಮಾಡಬೇಕು</string>
 </resources>

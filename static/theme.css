@@ -228,3 +228,32 @@ html[lang="hi"] .cyber h1, html[lang="kn"] .cyber h1, html[lang="ta"] .cyber h1,
 .c-skipped b { color: var(--c-dim); }
 .vf-note { margin: 14px 0 0; font-size: .78rem; color: var(--c-dim); }
 @media (max-width: 640px) { .vf-grid { grid-template-columns: 1fr; } .vf-head { flex-direction: column; align-items: flex-start; } }
+
+/* ---- SMS risk card (layered message pipeline) */
+.riskcard { --rk: #f5c542; border-left: 3px solid var(--rk); }
+.riskcard.rk-high { --rk: #ff2e4d; } .riskcard.rk-medium { --rk: #ff8a3d; } .riskcard.rk-low { --rk: #f5c542; } .riskcard.rk-minimal { --rk: #2ee6a6; }
+.rk-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+.rk-badge { font: 700 15px/1 ui-monospace, Menlo, monospace; letter-spacing: .12em; color: var(--rk); border: 1px solid var(--rk);
+  padding: 8px 12px; border-radius: 8px; box-shadow: 0 0 18px color-mix(in srgb, var(--rk) 35%, transparent); }
+.rk-score { color: #c9cbd6; font-size: 14px; } .rk-score small { color: #7d8093; }
+.rk-factors { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.rk-factors li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,.03);
+  border-left: 3px solid #7d8093; font-size: 14px; }
+.rk-factors li.sev-critical, .rk-factors li.sev-high { border-left-color: #ff2e4d; } .rk-factors li.sev-medium { border-left-color: #ff8a3d; }
+.rk-factors li.sev-low { border-left-color: #f5c542; }
+.rk-factors em { font-style: normal; font: 11px ui-monospace, Menlo, monospace; text-transform: uppercase; letter-spacing: .08em; color: #8f93a8; white-space: nowrap; }
+.rk-ai { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; background: rgba(90,140,255,.08); font-size: 14px; }
+.rk-facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 0 0 12px; font-size: 14px; }
+.rk-facts dt { color: #8f93a8; } .rk-facts dd { margin: 0; overflow-wrap: anywhere; }
+.rk-links { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; } .rk-links li { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.riskcard h4 { margin: 8px 0 6px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: #8f93a8; }
+.rk-safe { margin: 0 0 10px; padding-left: 18px; font-size: 14px; } .rk-safe li { margin: 3px 0; }
+.rk-layers summary { cursor: pointer; color: #6ea8ff; font-weight: 600; }
+.rk-layers ul { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 4px; font-size: 13px; }
+.rk-layers .ic { display: inline-block; width: 18px; text-align: center; margin-right: 4px; }
+.rk-layers .c-pass .ic { color: #2ee6a6; } .rk-layers .c-warn .ic { color: #f5c542; } .rk-layers .c-skipped .ic { color: #7d8093; }
+.msg-opts { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: end; margin-top: 10px; font-size: 14px; }
+.msg-sender { display: grid; gap: 4px; flex: 1 1 220px; } .msg-sender input { padding: 8px 10px; border-radius: 8px; border: 1px solid #2a2d3a;
+  background: #0d0f16; color: inherit; font: 14px ui-monospace, Menlo, monospace; }
+.msg-ai { display: flex; gap: 6px; align-items: center; }
+@media (max-width: 560px) { .rk-facts { grid-template-columns: 1fr; } .rk-facts dt { margin-top: 6px; } .rk-factors li { flex-direction: column; gap: 2px; } }
