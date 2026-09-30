@@ -282,7 +282,7 @@
     });
   }
 
-  function upload(file) {
+  async function upload(file) {
     $("#prog-file").textContent = file.name;
     $("#bar").style.width = "0%";
     setStep(0);
@@ -294,6 +294,8 @@
     xhr.open("POST", "/api/scan");
     const devTok = window.PGDev && window.PGDev.token();
     if (devTok) xhr.setRequestHeader("x-pg-device", devTok);
+    const authTok = window.PG && await window.PG.token();     // signed in: save this check to the account history
+    if (authTok) xhr.setRequestHeader("Authorization", "Bearer " + authTok);
     xhr.upload.onprogress = (e) => { if (e.lengthComputable) $("#bar").style.width = (e.loaded / e.total) * 60 + "%"; };
     xhr.upload.onload = () => {
       let s = 1; setStep(s); $("#bar").style.width = "65%";

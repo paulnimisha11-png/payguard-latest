@@ -320,7 +320,7 @@
   }
 
   /* ------------------------------------------------------------------ signed-in state */
-  fetch("/api/auth/me", { credentials: "same-origin" }).then(r => r.json()).then(d => {
+  if (window.PG && PG.hinted()) PG.me().then(d => {     // Clerk is only loaded here for browsers that signed in before
     const u = d && d.user;
     if (!u) return;
     const a = $("#nav-signin");

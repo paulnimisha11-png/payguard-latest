@@ -6,3 +6,6 @@ samples/
 tests/
 android-upi-intercept/
 .github/
+.env
+.env.*
+.venv*

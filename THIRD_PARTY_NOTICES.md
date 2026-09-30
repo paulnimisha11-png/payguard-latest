@@ -21,6 +21,8 @@ license. Nothing here is copied into our source files except where marked "bundl
 | [qrcode](https://github.com/lincolnloop/python-qrcode) | BSD | Payment / join QR images |
 | [cryptography](https://github.com/pyca/cryptography) | Apache-2.0 OR BSD-3-Clause | Web Push encryption and signing |
 | [psycopg 3 (psycopg[binary])](https://github.com/psycopg/psycopg) | LGPL-3.0-only | Postgres driver for accounts (used as an unmodified library) |
+| [clerk-backend-api](https://github.com/clerk/clerk-sdk-python) (with [PyJWT](https://github.com/jpadilla/pyjwt)) | MIT | Verifying Clerk session tokens, Clerk Backend API |
+| [ClerkJS (`@clerk/clerk-js`, `@clerk/ui`)](https://github.com/clerk/javascript) | MIT | Sign-in / sign-up form; loaded from Clerk's CDN at run time, not bundled |
 
 ## Web fonts (loaded from Google Fonts, not bundled)
 | Font | License | Used for |
@@ -32,6 +34,7 @@ license. Nothing here is copied into our source files except where marked "bundl
 | Service | Used for |
 |---|---|
 | [Supabase](https://supabase.com) (hosted Postgres) or any Postgres | Storing accounts |
+| [Clerk](https://clerk.com) | Sign-in (Google, email), email verification, password recovery |
 | [Brevo](https://www.brevo.com) or [Resend](https://resend.com) email API | Welcome, sign-in alert and password emails |
 | [Google Gemini API](https://ai.google.dev) | Optional AI explanation of APK scan results (only extracted metadata is sent) |
 

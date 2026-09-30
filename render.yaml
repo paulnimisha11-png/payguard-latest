@@ -25,7 +25,14 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: "gemini-3.8-flash"
-      # ---- Accounts (sign in, login-alert emails). Set these in the Render dashboard; they are secrets. ----
+      # ---- Sign-in (Clerk). Set the values in the Render dashboard (Clerk Dashboard → API keys); never commit them. ----
+      - key: CLERK_PUBLISHABLE_KEY   # pk_test_… (public; the server hands it to the browser)
+        sync: false
+      - key: CLERK_SECRET_KEY        # sk_test_… (secret; server only)
+        sync: false
+      - key: CLERK_JWT_KEY           # optional: "JWKS Public Key" PEM (paste it as is), verifies session tokens without a network call
+        sync: false
+      # ---- Accounts (history, login-alert emails). Set these in the Render dashboard; they are secrets. ----
       # Render's free disk is wiped on every deploy/restart, so accounts must live in a hosted Postgres
       # (free: Supabase → Project settings → Database → Connection string → "Transaction pooler", port 6543).
       - key: DATABASE_URL
@@ -37,7 +44,8 @@ services:
         sync: false
       - key: MAIL_FROM_NAME
         value: "PayGuard"
-      - key: PUBLIC_URL           # used in email links, e.g. https://payguard-latest.onrender.com
+      - key: PUBLIC_URL           # this site's address, e.g. https://payguard-latest.onrender.com: used in email links, and
+                                  # Clerk session tokens are only accepted when they were issued for it
         sync: false
       # After the Android build runs on GitHub, point the website's "Download the app" button at it:
       # - key: APKXRAY_APP_APK_URL

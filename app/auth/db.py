@@ -105,6 +105,16 @@ class DB:
             if key == "history_sqlite" and IS_PG or key == "history_pg" and not IS_PG:
                 continue
             self.exec(ddl)
+        # Clerk sign-in: existing accounts are linked by id, so their history stays with them.
+        self._add_column("pg_users", "clerk_user_id")
+        self._add_column("pg_sessions", "clerk_sid")
+        self.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_pg_users_clerk ON pg_users(clerk_user_id)")
+
+    def _add_column(self, table: str, col: str) -> None:
+        if IS_PG:
+            self.exec(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col} TEXT")
+        elif col not in [r[1] for r in self.all(f"PRAGMA table_info({table})")]:
+            self.exec(f"ALTER TABLE {table} ADD COLUMN {col} TEXT")
 
     def ping(self) -> bool:
         try:

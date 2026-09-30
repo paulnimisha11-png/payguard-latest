@@ -1,4 +1,4 @@
-/* PayGuard account page: profile, password, devices, history, delete. */
+/* PayGuard account page: profile, sign-in settings (Clerk), devices, history, delete. */
 (() => {
   "use strict";
   const $ = (s, r = document) => r.querySelector(s);
@@ -120,19 +120,10 @@
     });
   });
 
-  $("#f-pass").addEventListener("submit", e => {
-    e.preventDefault();
-    const f = e.target, btn = f.querySelector("button[type=submit]");
-    formErr(f, "");
-    if (f.new.value.length < 8) return formErr(f, "Use at least 8 characters.");
-    busy(btn, async () => {
-      try {
-        await api("/api/auth/password", "POST", { current: f.current.value, new: f.new.value });
-        f.reset();
-        toast("Password changed. We've emailed you a notice.", "ok");
-      } catch (err) { formErr(f, err.message); }
-    });
-  });
+  $("#manage-sec").addEventListener("click", e => busy(e.currentTarget, async () => {
+    const c = await PG.clerk();
+    if (c) c.openUserProfile(); else toast("Sign-in settings aren't available right now.", "err");
+  }));
 
   $("#resend").addEventListener("click", e => busy(e.target, async () => {
     try {
@@ -148,24 +139,24 @@
 
   $("#logout-all").addEventListener("click", e => {
     if (!confirm("Sign out on every device, including this one?")) return;
-    busy(e.target, async () => { await api("/api/auth/logout-all", "POST", {}); location.href = "/login"; });
+    busy(e.target, async () => { await api("/api/auth/logout-all", "POST", {}); await PG.signOut("/login"); });
   });
 
-  $("#logout").addEventListener("click", e => busy(e.target, async () => {
-    try { await api("/api/auth/logout", "POST", {}); } catch (err) { /* already signed out */ }
-    location.href = "/";
-  }));
+  $("#logout").addEventListener("click", e => busy(e.target, () => PG.signOut("/")));
 
   $("#f-del").addEventListener("submit", e => {
     e.preventDefault();
     const f = e.target, btn = f.querySelector("button");
     const errP = f.parentElement.querySelector(".ferr");
     errP.textContent = "";
-    if (!f.password.value) return (errP.textContent = "Enter your password to confirm.");
+    if (f.confirm.value.trim() !== "DELETE") return (errP.textContent = "Type DELETE (in capitals) to confirm.");
     if (!confirm("Delete your PayGuard account for good? This can't be undone.")) return;
     busy(btn, async () => {
-      try { await api("/api/auth/delete", "POST", { password: f.password.value }); location.href = "/?deleted=1"; }
-      catch (err) { errP.textContent = err.message; }
+      try { await api("/api/auth/delete", "POST", { confirm: f.confirm.value.trim() }); }
+      catch (err) { errP.textContent = err.message; return; }
+      let left = false;
+      try { const c = await PG.clerk(); if (c) { await c.signOut({ redirectUrl: "/?deleted=1" }); left = true; } } catch (err) { /* the Clerk user is already gone */ }
+      setTimeout(() => { location.href = "/?deleted=1"; }, left ? 1500 : 0);
     });
   });
 
@@ -174,8 +165,6 @@
     if (!d.user) { location.replace("/login?next=" + encodeURIComponent("/account" + location.hash)); return; }
     $("#acct").hidden = false;
     paint(d.user, d.stats);
-    const q = new URLSearchParams(location.search);
-    if (q.get("verified") === "1") toast("Email confirmed. Thanks!", "ok");
     Promise.all([loadDevices(), loadHistory()]).then(() => {
       if (location.hash === "#history") $("#history").scrollIntoView({ behavior: "smooth", block: "start" });
     }).catch(err => toast(err.message, "err"));

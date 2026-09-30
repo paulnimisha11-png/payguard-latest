@@ -1,6 +1,70 @@
-/* Shared account helpers: JSON API calls, the signed-in user, a toast, and the user menu on inner pages. */
+/* Shared account helpers: Clerk sign-in, JSON API calls, the signed-in user, a toast, and the user menu on inner pages. */
 (() => {
   "use strict";
+  /* ------------------------------------------------------------------ Clerk (loaded from its CDN, no build step)
+     The server hands out the publishable key (/api/auth/config). Every call to this site's /api/ then carries the
+     Clerk session token, which the server verifies. */
+  const HINT = "pg_signed";                           // "this browser was signed in last time": don't make scans wait for Clerk otherwise
+  const hinted = () => { try { return localStorage.getItem(HINT) === "1"; } catch (e) { return false; } };
+  const setHint = on => { try { on ? localStorage.setItem(HINT, "1") : localStorage.removeItem(HINT); } catch (e) { /* private mode */ } };
+  const baseFetch = window.fetch.bind(window);        // device.js's wrapper on pages that load it
+  const addScript = (src, attrs = {}) => new Promise((ok, fail) => {
+    const el = document.createElement("script");
+    el.src = src; el.async = true; el.crossOrigin = "anonymous";
+    Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+    el.onload = ok; el.onerror = () => fail(new Error("Couldn't load " + src));
+    document.head.appendChild(el);
+  });
+
+  let clerkPromise = null, ready = null;               // ready: the Clerk object once it has finished loading
+  // Resolves to the loaded Clerk object, or null when accounts are switched off or Clerk can't be reached.
+  function clerk() {
+    if (!clerkPromise) clerkPromise = (async () => {
+      const cfg = await (await baseFetch("/api/auth/config")).json();
+      if (!cfg.publishable_key) return null;
+      // pk_test_<base64 of "your-instance.clerk.accounts.dev$">: the key itself says where ClerkJS is served from
+      const host = atob(cfg.publishable_key.split("_")[2]).replace(/\$$/, "");
+      await addScript(`https://${host}/npm/@clerk/ui@1/dist/ui.browser.js`);
+      await addScript(`https://${host}/npm/@clerk/clerk-js@6/dist/clerk.browser.js`, { "data-clerk-publishable-key": cfg.publishable_key });
+      await window.Clerk.load({ ui: { ClerkUI: window.__internal_ClerkUICtor }, signInUrl: "/login", signUpUrl: "/login?mode=register" });
+      ready = window.Clerk;
+      setHint(!!ready.session);
+      window.Clerk.addListener(({ session }) => setHint(!!session));
+      return window.Clerk;
+    })().catch(() => null);
+    return clerkPromise;
+  }
+
+  // The current Clerk session token (they last a minute; ClerkJS renews them), or null when signed out.
+  async function token() {
+    let c = ready;
+    if (!c && hinted()) c = await Promise.race([clerk(), new Promise(r => setTimeout(r, 6000, null))]);   // anonymous checks never wait for Clerk
+    try { return c && c.session ? await c.session.getToken() : null; } catch (e) { return null; }
+  }
+
+  window.fetch = async (input, init = {}) => {
+    const url = typeof input === "string" ? input : (input.url || String(input));
+    if (url.startsWith("/api/") || url.startsWith(location.origin + "/api/")) {
+      const tok = await token();
+      if (tok) {
+        const h = new Headers(init.headers || (typeof input !== "string" ? input.headers : undefined) || {});
+        if (!h.has("authorization")) h.set("Authorization", "Bearer " + tok);
+        init = { ...init, headers: h };
+      }
+    }
+    return baseFetch(input, init);
+  };
+
+  // Ends the session here and at Clerk, then goes to `to` (Clerk navigates by itself after signing out: tell it where).
+  async function signOut(to = "/") {
+    try { await api("/api/auth/logout", "POST", {}); } catch (e) { /* already out */ }
+    const c = await clerk();
+    setHint(false);
+    let left = false;
+    try { if (c) { await c.signOut({ redirectUrl: to }); left = true; } } catch (e) { /* offline */ }
+    setTimeout(() => { location.href = to; }, left ? 1500 : 0);   // Clerk is already on its way there; this is the fallback
+  }
+
   async function api(path, method = "GET", body) {
     const opt = { method, credentials: "same-origin", headers: {} };
     if (body !== undefined || (method !== "GET" && method !== "DELETE")) {
@@ -20,7 +84,7 @@
 
   let mePromise = null;
   const me = (fresh) => {
-    if (!mePromise || fresh) mePromise = api("/api/auth/me").catch(() => ({ user: null }));
+    if (!mePromise || fresh) mePromise = clerk().then(c => (c && c.session ? api("/api/auth/me") : { user: null })).catch(() => ({ user: null }));
     return mePromise;
   };
 
@@ -73,7 +137,7 @@
       who.append(wb, ws);
       const link = (href, text) => { const a = document.createElement("a"); a.href = href; a.textContent = text; a.setAttribute("role", "menuitem"); return a; };
       const out = document.createElement("button"); out.type = "button"; out.className = "danger"; out.textContent = "Sign out"; out.setAttribute("role", "menuitem");
-      out.onclick = async () => { try { await api("/api/auth/logout", "POST", {}); } catch (e) { /* already out */ } location.href = "/"; };
+      out.onclick = () => signOut("/");
       m.append(who, link("/account", "My account"), link("/account#history", "My check history"), link("/app", "Scanner"), link("/family", "Family shield"), out);
       slot.append(b, m);
       b.onclick = e => { e.stopPropagation(); const o = slot.classList.toggle("open"); b.setAttribute("aria-expanded", o); };
@@ -99,14 +163,9 @@
     el.hidden = false;
   }
 
-  window.PG = { api, me, toast, safeNext, mountUserMenu, initial, first };
+  window.PG = { api, me, clerk, token, signOut, hinted, toast, safeNext, mountUserMenu, initial, first };
   const boot = () => {
     mountUserMenu(); mountStrip();
-    const v = new URLSearchParams(location.search).get("verified");
-    if (v && location.pathname === "/app") {
-      toast(v === "1" ? "Email confirmed. Thanks!" : "That confirmation link has expired or was already used.", v === "1" ? "ok" : "err");
-      history.replaceState(null, "", "/app");
-    }
   };
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot); else boot();
 })();

@@ -1,6 +1,6 @@
 /* PayGuard service worker: makes the app installable and keeps the app shell available offline.
    Scans always go to the server (never cached), so results are always fresh. */
-const VERSION = "payguard-v7";
+const VERSION = "payguard-v8";
 const SHELL = ["/", "/app", "/trends", "/family", "/style.css", "/cyber.css", "/theme.css", "/pgauth.js", "/hood.js", "/sentinel.js", "/sentinel.css",
                "/landing.css", "/landing.js", "/vendor/lenis.min.js", "/device.js", "/app.js", "/qr.js", "/shot.js", "/report.js", "/vote.js", "/pay.js",
                "/msg.js", "/pwa.js", "/trends.js", "/family.js", "/memory", "/memory.js",

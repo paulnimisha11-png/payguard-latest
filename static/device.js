@@ -22,7 +22,7 @@
 
   const nativeFetch = window.fetch.bind(window);
   window.fetch = (input, init = {}) => {
-    const url = typeof input === "string" ? input : input.url;
+    const url = typeof input === "string" ? input : (input.url || String(input));   // string, Request or URL (ClerkJS passes URLs)
     const tok = token();
     const sameApi = url.startsWith("/api/") || url.startsWith(location.origin + "/api/");
     if (tok && sameApi) {

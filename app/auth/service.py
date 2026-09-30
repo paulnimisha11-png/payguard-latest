@@ -1,15 +1,15 @@
-"""Accounts: sign-up, sign-in, sessions ("stay signed in until you sign out"), password reset, email confirmation,
-login alerts and a per-user history of checks.
+"""Accounts: who is signed in (Clerk does the signing in, see clerk.py), sessions and sign-in alerts, profile, and a
+per-user history of checks.
 
 Security choices
-- Passwords: scrypt (passwords.py). Emails are case-insensitive and unique.
-- Sessions: a random 256-bit token in an HttpOnly, Secure, SameSite=Lax cookie. Only its SHA-256 is stored, so a
-  database leak doesn't hand out sessions. 30-day lifetime, extended while you use the site (sliding), so people
-  stay signed in until they sign out. Signing out deletes the session on the server.
-- Brute force: failed sign-ins are limited per email and per IP; unknown emails get the same error and the same
-  timing as wrong passwords; "forgot password" never reveals whether an email has an account.
-- One-time tokens (email confirmation 24 h, password reset 1 h) are stored hashed and burn on use. A reset signs out
-  every device.
+- Sign-up, passwords, Google sign-in, email verification and recovery are Clerk's job. PayGuard never sees a
+  password; the old email + password endpoints are gone.
+- A PayGuard account is linked to a Clerk user by clerk_user_id. The first time a Clerk user shows up, the account
+  with the same *verified* email is linked (so people who signed up before Clerk keep their history); otherwise a
+  new account is created. An unverified email never links.
+- Every Clerk session we see is recorded (device, masked network): that is the "where you're signed in" list and
+  what triggers the sign-in alert email. Ending a session here also revokes it at Clerk.
+- One-time tokens (the "wasn't me" link in a sign-in alert, 1 h) are stored hashed and burn on use.
 """
 from __future__ import annotations
 
@@ -19,10 +19,8 @@ import secrets
 
 from . import emails, mailer
 from .db import db, now
-from .passwords import DUMMY_HASH, hash_password, needs_rehash, password_problem, verify_password
 
-SESSION_DAYS = 30
-COOKIE = "pg_session"
+SESSION_DAYS = 30                      # a device drops off the list after this long without a visit
 EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[a-z]{2,24}$", re.I)
 USER_COLS = "id, email, name, phone, lang, email_verified, login_alerts, created, last_login"
 
@@ -61,86 +59,34 @@ def clean_name(name: str) -> str:
     return n
 
 
-# ------------------------------------------------------------------ rate limits (stored, so they survive restarts)
-
-def _attempts(key: str, window: float) -> int:
-    d = db()
-    d.exec("DELETE FROM pg_login_attempts WHERE at < ?", now() - 3600)
-    return d.one("SELECT COUNT(*) FROM pg_login_attempts WHERE key=? AND at > ?", key, now() - window)[0]
-
-
-def _note_attempt(key: str) -> None:
-    db().exec("INSERT INTO pg_login_attempts(key, at) VALUES (?, ?)", key, now())
-
-
-def _clear_attempts(key: str) -> None:
-    db().exec("DELETE FROM pg_login_attempts WHERE key=?", key)
-
-
-def _limit(key: str, max_n: int, window: float, msg: str) -> None:
-    if _attempts(key, window) >= max_n:
-        raise AuthError(429, msg)
-
-
 # ------------------------------------------------------------------ users
 
-def signup(name: str, email: str, password: str, lang: str, ip: str, device: str, base_url: str) -> tuple[dict, str]:
-    name, email = clean_name(name), norm_email(email)
-    problem = password_problem(password, email)
-    if problem:
-        raise AuthError(422, problem, "password")
-    _limit(f"signup:{ip}", 10, 3600, "Too many new accounts from this network. Try again in an hour.")
-    _note_attempt(f"signup:{ip}")
+def clerk_user(clerk_id: str, fetch) -> tuple[dict, bool] | None:
+    """(PayGuard user, newly created?) for a Clerk user id. `fetch(clerk_id)` asks Clerk for the user's primary
+    email; it is only called the first time we meet this Clerk user."""
     d = db()
-    if d.one("SELECT 1 FROM pg_users WHERE email=?", email):
-        raise AuthError(409, "An account with this email already exists. Sign in instead, or reset your password.", "email")
+    row = d.one(f"SELECT {USER_COLS} FROM pg_users WHERE clerk_user_id=?", clerk_id)
+    if row:
+        return _user(row), False
+    info = fetch(clerk_id)
+    if not info or not info.get("verified"):
+        return None                                   # never link on an email nobody proved they own
+    email = norm_email(info["email"])
+    old = d.one("SELECT id FROM pg_users WHERE email=?", email)
+    if old:                                           # an account from before Clerk: same person, keep everything
+        if d.exec("UPDATE pg_users SET clerk_user_id=?, email_verified=1 WHERE id=? AND clerk_user_id IS NULL",
+                  clerk_id, old[0]) != 1:
+            return None                               # that email already belongs to another Clerk user
+        return get_user(old[0]), False
     uid = secrets.token_urlsafe(12)
-    lang = lang if lang in ("en", "hi", "kn") else "en"
-    d.exec("INSERT INTO pg_users(id, email, name, pw_hash, lang, created, last_login) VALUES (?,?,?,?,?,?,?)",
-           uid, email, name, hash_password(password), lang, now(), now())
-    token = new_session(uid, device, ip)
-    verify = _one_time_token(uid, "verify", 24 * 3600)
-    subj, html, text = emails.welcome(lang, name, f"{base_url}/api/auth/verify?token={verify}")
-    mailer.send(email, subj, html, text)
-    return get_user(uid), token
-
-
-def login(email: str, password: str, ip: str, device: str, base_url: str) -> tuple[dict, str]:
-    e = (email or "").strip().lower()
-    _limit(f"ip:{ip}", 30, 900, "Too many sign-in attempts from this network. Wait 15 minutes.")
-    _limit(f"email:{e}", 6, 900, "Too many wrong passwords for this account. Wait 15 minutes, or reset your password.")
-    d = db()
-    row = d.one("SELECT id, pw_hash FROM pg_users WHERE email=?", e) if EMAIL_RE.match(e) else None
-    ok = verify_password(password or "", row[1] if row else DUMMY_HASH)
-    if not row or not ok:
-        _note_attempt(f"ip:{ip}")
-        _note_attempt(f"email:{e}")
-        raise AuthError(401, "Wrong email or password.")
-    uid = row[0]
-    _clear_attempts(f"email:{e}")
-    if needs_rehash(row[1]):
-        d.exec("UPDATE pg_users SET pw_hash=? WHERE id=?", hash_password(password), uid)
-    d.exec("UPDATE pg_users SET last_login=? WHERE id=?", now(), uid)
-    token = new_session(uid, device, ip)
-    u = get_user(uid)
-    if u["login_alerts"]:
-        reset_token = _one_time_token(uid, "reset", 3600)
-        subj, html, text = emails.login_alert(u["lang"], now(), device, mask_ip(ip), f"{base_url}/login?reset={reset_token}")
-        mailer.send(u["email"], subj, html, text)
-    return u, token
-
-
-def resend_verification(uid: str, base_url: str) -> bool:
-    """Sends a fresh confirmation link. Returns False if the email is already confirmed."""
-    u = get_user(uid)
-    if not u or u["email_verified"]:
-        return False
-    _limit(f"verify:{uid}", 3, 3600, "We've sent a few links already. Check your spam folder, or try again in an hour.")
-    _note_attempt(f"verify:{uid}")
-    verify = _one_time_token(uid, "verify", 24 * 3600)
-    subj, html, text = emails.welcome(u["lang"], u["name"], f"{base_url}/api/auth/verify?token={verify}")
-    mailer.send(u["email"], subj, html, text)
-    return True
+    name = " ".join((info.get("name") or "").split())[:60] or email.split("@")[0][:60]
+    try:
+        d.exec("INSERT INTO pg_users(id, email, name, pw_hash, email_verified, created, last_login, clerk_user_id) "
+               "VALUES (?,?,?,'',1,?,?,?)", uid, email, name, now(), now(), clerk_id)
+    except Exception:                                 # two first requests at the same moment: the other one won
+        row = d.one(f"SELECT {USER_COLS} FROM pg_users WHERE clerk_user_id=?", clerk_id)
+        return (_user(row), False) if row else None
+    return get_user(uid), True
 
 
 def get_user(uid: str) -> dict | None:
@@ -166,88 +112,75 @@ def update_user(uid: str, name: str | None = None, phone: str | None = None, lan
     return get_user(uid)
 
 
-def change_password(uid: str, current: str, new: str, keep_session: str, base_url: str) -> None:
-    row = db().one("SELECT pw_hash, email, lang FROM pg_users WHERE id=?", uid)
-    if not row or not verify_password(current or "", row[0]):
-        raise AuthError(401, "Your current password is wrong.", "current")
-    problem = password_problem(new, row[1])
-    if problem:
-        raise AuthError(422, problem, "password")
-    db().exec("UPDATE pg_users SET pw_hash=? WHERE id=?", hash_password(new), uid)
-    db().exec("DELETE FROM pg_sessions WHERE user_id=? AND id<>?", uid, keep_session)
-    t = _one_time_token(uid, "reset", 3600)
-    subj, html, text = emails.password_changed(row[2], f"{base_url}/login?reset={t}")
-    mailer.send(row[1], subj, html, text)
-
-
-def delete_account(uid: str, password: str) -> None:
-    row = db().one("SELECT pw_hash FROM pg_users WHERE id=?", uid)
-    if not row or not verify_password(password or "", row[0]):
-        raise AuthError(401, "Wrong password.", "password")
+def delete_account(uid: str) -> str | None:
+    """Removes the profile, history and sessions. Returns the Clerk user id that was linked, if any."""
     d = db()
+    row = d.one("SELECT clerk_user_id FROM pg_users WHERE id=?", uid)
     for t in ("pg_sessions", "pg_tokens", "pg_history"):
         d.exec(f"DELETE FROM {t} WHERE user_id=?", uid)
     d.exec("DELETE FROM pg_users WHERE id=?", uid)
+    return row[0] if row else None
 
 
 # ------------------------------------------------------------------ sessions
 
-def new_session(uid: str, device: str, ip: str) -> str:
-    token = secrets.token_urlsafe(32)
-    t = now()
-    db().exec("INSERT INTO pg_sessions(id, user_id, created, last_seen, expires, device, ip) VALUES (?,?,?,?,?,?,?)",
-              _h(token), uid, t, t, t + SESSION_DAYS * 86400, device[:120], mask_ip(ip))
-    return token
+def clerk_session(u: dict, clerk_sid: str, device: str, ip: str, base_url: str, alert: bool = True) -> str | None:
+    """Our record of one Clerk session; returns its id here, or None if it was signed out from the account page
+    (Clerk's token can outlive that by up to a minute). A session we haven't seen before is a new sign-in: it is
+    added to the device list and, unless alerts are off, the owner gets the sign-in email."""
+    sid, d, t = _h(clerk_sid), db(), now()
+    row = d.one("SELECT last_seen, expires FROM pg_sessions WHERE id=?", sid)
+    if row:
+        if row[1] <= 0:
+            return None
+        if t - row[0] > 3600:
+            d.exec("UPDATE pg_sessions SET last_seen=?, expires=? WHERE id=?", t, t + SESSION_DAYS * 86400, sid)
+        return sid
+    try:
+        d.exec("INSERT INTO pg_sessions(id, user_id, created, last_seen, expires, device, ip, clerk_sid) VALUES (?,?,?,?,?,?,?,?)",
+               sid, u["id"], t, t, t + SESSION_DAYS * 86400, device[:120], mask_ip(ip), clerk_sid)
+    except Exception:                                 # a parallel request recorded it first
+        return sid
+    d.exec("UPDATE pg_users SET last_login=? WHERE id=?", t, u["id"])
+    if alert and u["login_alerts"]:
+        reset_token = _one_time_token(u["id"], "reset", 3600)
+        subj, html, text = emails.login_alert(u["lang"], t, device, mask_ip(ip), f"{base_url}/login?reset={reset_token}")
+        mailer.send(u["email"], subj, html, text)
+    return sid
 
 
-def session_user(token: str | None) -> tuple[dict, str, bool] | None:
-    """(user, session_id, cookie_should_be_refreshed) for a valid session token."""
-    if not token or len(token) > 100:
-        return None
-    sid = _h(token)
+def _end(where: str, *params) -> list[str]:
+    """Marks sessions as signed out and returns their Clerk session ids so the caller can revoke them at Clerk."""
     d = db()
-    row = d.one("SELECT user_id, last_seen, expires FROM pg_sessions WHERE id=?", sid)
-    if not row:
-        return None
-    uid, last_seen, expires = row
-    t = now()
-    if expires < t:
-        d.exec("DELETE FROM pg_sessions WHERE id=?", sid)
-        return None
-    refresh = False
-    if t - last_seen > 3600:                       # sliding expiry: active users stay signed in
-        new_exp = t + SESSION_DAYS * 86400
-        refresh = new_exp - expires > 86400
-        d.exec("UPDATE pg_sessions SET last_seen=?, expires=? WHERE id=?", t, max(expires, new_exp), sid)
-    u = get_user(uid)
-    return (u, sid, refresh) if u else None
+    rows = d.all(f"SELECT clerk_sid FROM pg_sessions WHERE {where} AND expires>0 AND clerk_sid IS NOT NULL", *params)
+    d.exec(f"UPDATE pg_sessions SET expires=0 WHERE {where}", *params)
+    return [r[0] for r in rows]
 
 
-def end_session(token: str | None) -> None:
-    if token:
-        db().exec("DELETE FROM pg_sessions WHERE id=?", _h(token))
+def end_session(sid: str) -> list[str]:
+    return _end("id=?", sid)
 
 
-def end_all_sessions(uid: str, except_sid: str | None = None) -> int:
-    if except_sid:
-        return db().exec("DELETE FROM pg_sessions WHERE user_id=? AND id<>?", uid, except_sid)
-    return db().exec("DELETE FROM pg_sessions WHERE user_id=?", uid)
+def end_all_sessions(uid: str) -> list[str]:
+    return _end("user_id=?", uid)
 
 
 def list_sessions(uid: str, current_sid: str) -> list[dict]:
-    rows = db().all("SELECT id, created, last_seen, device, ip FROM pg_sessions WHERE user_id=? AND expires>? ORDER BY last_seen DESC",
-                    uid, now())
+    rows = db().all("SELECT id, created, last_seen, device, ip FROM pg_sessions WHERE user_id=? AND expires>? "
+                    "AND clerk_sid IS NOT NULL ORDER BY last_seen DESC", uid, now())
     return [{"id": r[0][:16], "created": r[1], "last_seen": r[2], "device": r[3], "network": r[4], "current": r[0] == current_sid}
             for r in rows]
 
 
-def end_session_by_prefix(uid: str, prefix: str) -> bool:
+def end_session_by_prefix(uid: str, prefix: str) -> list[str] | None:
     if not re.fullmatch(r"[0-9a-f]{16}", prefix or ""):
-        return False
-    return db().exec("DELETE FROM pg_sessions WHERE user_id=? AND id LIKE ?", uid, prefix + "%") > 0
+        return None
+    if not db().one("SELECT 1 FROM pg_sessions WHERE user_id=? AND id LIKE ? AND expires>0", uid, prefix + "%"):
+        return None
+    return _end("user_id=? AND id LIKE ?", uid, prefix + "%")
 
 
-# ------------------------------------------------------------------ one-time tokens (verify email, reset password)
+# ------------------------------------------------------------------ one-time tokens (the "wasn't me" link)
 
 def _one_time_token(uid: str, kind: str, ttl: float) -> str:
     token = secrets.token_urlsafe(32)
@@ -269,47 +202,13 @@ def _use_token(token: str, kind: str) -> str | None:
     return row[0]
 
 
-def verify_email(token: str) -> bool:
-    uid = _use_token(token, "verify")
-    if not uid:
-        return False
-    db().exec("UPDATE pg_users SET email_verified=1 WHERE id=?", uid)
-    return True
-
-
-def forgot_password(email: str, ip: str, base_url: str) -> None:
-    """Always 'succeeds' from the outside, so nobody can learn which emails have accounts."""
-    e = (email or "").strip().lower()
-    if not EMAIL_RE.match(e):
-        return
-    if _attempts(f"forgot:{e}", 900) >= 3 or _attempts(f"forgotip:{ip}", 900) >= 10:
-        return
-    _note_attempt(f"forgot:{e}")
-    _note_attempt(f"forgotip:{ip}")
-    row = db().one("SELECT id, lang FROM pg_users WHERE email=?", e)
-    if not row:
-        return
-    t = _one_time_token(row[0], "reset", 3600)
-    subj, html, text = emails.reset(row[1], f"{base_url}/login?reset={t}")
-    mailer.send(e, subj, html, text)
-
-
-def reset_password(token: str, new: str, ip: str, device: str) -> tuple[dict, str]:
-    d = db()
-    row = d.one("SELECT user_id FROM pg_tokens WHERE token_hash=? AND kind='reset' AND used=0 AND expires>?", _h(token or ""), now())
-    if not row:
-        raise AuthError(400, "This reset link has expired or was already used. Ask for a new one.")
-    u = get_user(row[0])
-    problem = password_problem(new, u["email"] if u else "")
-    if problem:
-        raise AuthError(422, problem, "password")
+def lock_account(token: str) -> list[str] | None:
+    """The "wasn't me" link in a sign-in alert: signs the account out everywhere. Returns the Clerk sessions to
+    revoke, or None if the link is used up or expired."""
     uid = _use_token(token, "reset")
     if not uid:
-        raise AuthError(400, "This reset link has expired or was already used. Ask for a new one.")
-    d.exec("UPDATE pg_users SET pw_hash=?, email_verified=1 WHERE id=?", hash_password(new), uid)  # they proved the inbox
-    end_all_sessions(uid)
-    _clear_attempts(f"email:{u['email']}")
-    return get_user(uid), new_session(uid, device, ip)
+        return None
+    return end_all_sessions(uid)
 
 
 # ------------------------------------------------------------------ history of checks

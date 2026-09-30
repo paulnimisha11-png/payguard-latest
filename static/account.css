@@ -104,3 +104,4 @@
   .id-card { padding: 18px; gap: 14px; } .id-av { width: 64px; height: 64px; font-size: 1.5rem; }
   .panel { padding: 18px; } .hist li { grid-template-columns: auto 1fr; } .hist .lv { grid-column: 2; justify-self: start; }
 }
+#manage-sec { margin-top: 14px; }

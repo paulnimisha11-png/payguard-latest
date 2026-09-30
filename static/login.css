@@ -61,6 +61,7 @@ body.auth { margin: 0; min-height: 100vh; min-height: 100svh; display: flex; fle
 .tabs.reg .tab-ink { transform: translateX(100%); }
 
 .pane { animation: paneIn .45s var(--ease-out); }
+.clerk-box { display: flex; justify-content: center; min-height: 140px; }   /* Clerk's form mounts here */
 @keyframes paneIn { from { opacity: 0; transform: translateX(var(--from, 14px)); } }
 .field { display: block; margin-bottom: 14px; }
 .field > span { display: block; margin-bottom: 6px; font: 600 .68rem var(--f-mono); letter-spacing: .18em; color: var(--c-red2); }

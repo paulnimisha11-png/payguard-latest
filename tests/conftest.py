@@ -1,6 +1,9 @@
 import os
 import tempfile
 
+# Tests never read the developer's .env (real keys, PUBLIC_URL); each test sets what it needs.
+os.environ["PAYGUARD_ENV_FILE"] = ""
+
 # Tests fire many scans from one client; don't let the per-IP rate limit get in the way.
 os.environ.setdefault("APKXRAY_RATE_PER_MIN", "10000")
 # Each test run gets its own fresh database, so runs never touch data/apkxray.db and stored

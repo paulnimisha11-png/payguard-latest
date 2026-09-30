@@ -1,4 +1,4 @@
-/* PayGuard access terminal: matrix rain, login/register/forgot/reset flows. */
+/* PayGuard access terminal: matrix rain around Clerk's sign-in / sign-up form. */
 (() => {
   "use strict";
   const $ = (s, r = document) => r.querySelector(s);
@@ -73,34 +73,51 @@
     logTimer = setInterval(() => { logEl.textContent = msg.slice(0, ++i); if (i >= msg.length) clearInterval(logTimer); }, 16);
   }
 
-  /* ------------------------------------------------------------------ modes */
-  const forms = { login: $("#f-login"), register: $("#f-register"), forgot: $("#f-forgot"), reset: $("#f-reset") };
-  const tabs = $(".tabs");
+  /* ------------------------------------------------------------------ Clerk's form, dressed for the terminal */
+  const box = $("#clerk-box"), tabs = $(".tabs"), errEl = $("#auth-err");
   const LOG = {
     login: "> secure channel open. identify yourself.",
     register: "> new operator. create your credentials.",
-    forgot: "> recovery mode. we'll email a one-time link.",
-    reset: "> reset token accepted. choose a new password.",
   };
-  let mode = null;
-  function setMode(m, push = true) {
+  const APPEARANCE = {
+    variables: {
+      colorPrimary: "#ff1f3d", colorPrimaryForeground: "#ffffff", colorBackground: "#0b0b10", colorForeground: "#eef0f6",
+      colorMutedForeground: "#8d91a6", colorInput: "#050507", colorInputForeground: "#eef0f6", colorNeutral: "#ffffff",
+      colorDanger: "#ff5468", colorSuccess: "#19e68c", borderRadius: "10px", fontFamily: '"Inter", system-ui, sans-serif',
+    },
+    elements: { rootBox: { width: "100%" }, cardBox: { width: "100%", boxShadow: "none" }, card: { boxShadow: "none" } },
+  };
+  function fail(msg) {
+    errEl.textContent = msg;
+    const t = $("#term");
+    t.classList.remove("shake"); void t.offsetWidth; t.classList.add("shake");
+    log("> access denied.");
+  }
+
+  let mode = null, mounted = null;
+  async function setMode(m, push = true) {
     if (m === mode) return;
-    const order = ["login", "register"];
-    const dir = order.indexOf(m) < order.indexOf(mode) ? -1 : 1;
     mode = m;
-    Object.entries(forms).forEach(([k, f]) => { f.hidden = k !== m; if (k === m) f.style.setProperty("--from", (dir * 14) + "px"); });
-    tabs.hidden = !(m === "login" || m === "register");
     tabs.classList.toggle("reg", m === "register");
     $$("[role=tab]", tabs).forEach(t => t.setAttribute("aria-selected", t.dataset.mode === m));
-    $$(".err, .ok").forEach(e => { e.textContent = ""; });
+    box.setAttribute("aria-labelledby", "tab-" + m);
+    errEl.textContent = "";
     log(LOG[m]);
-    if (push && (m === "login" || m === "register")) {
+    if (push) {                                       // a fresh form: drop Clerk's step (#/factor-one…) from the address
       const u = new URL(location.href);
       if (m === "register") u.searchParams.set("mode", "register"); else u.searchParams.delete("mode");
+      u.hash = "";
       history.replaceState(null, "", u);
     }
-    const first = forms[m].querySelector("input");
-    if (first && matchMedia("(hover: hover)").matches) setTimeout(() => first.focus(), 60);
+    const c = await PG.clerk();
+    if (!c) return fail("Sign-in isn't available right now. Every scanner still works without an account.");
+    if (m !== mode) return;                           // the other tab was clicked while Clerk was loading
+    if (mounted === "login") c.unmountSignIn(box);
+    if (mounted === "register") c.unmountSignUp(box);
+    const here = "/login?next=" + encodeURIComponent(next);
+    if (m === "register") c.mountSignUp(box, { appearance: APPEARANCE, routing: "hash", forceRedirectUrl: next, signInUrl: here, signInForceRedirectUrl: next });
+    else c.mountSignIn(box, { appearance: APPEARANCE, routing: "hash", forceRedirectUrl: next, signUpUrl: here + "&mode=register", signUpForceRedirectUrl: next });
+    mounted = m;
   }
   $$("[role=tab]", tabs).forEach(t => t.addEventListener("click", () => setMode(t.dataset.mode)));
   tabs.addEventListener("keydown", e => {
@@ -108,129 +125,38 @@
     const m = mode === "login" ? "register" : "login";
     setMode(m); $(`[data-mode="${m}"][role=tab]`).focus();
   });
-  $$("[data-go]").forEach(b => b.addEventListener("click", () => {
-    const m = b.dataset.go;
-    if (m === "forgot") forms.forgot.email.value = forms.login.email.value;
-    setMode(m);
-  }));
-
-  /* show / hide password */
-  $$(".eye").forEach(b => b.addEventListener("click", () => {
-    const inp = b.parentElement.querySelector("input");
-    const show = inp.type === "password";
-    inp.type = show ? "text" : "password";
-    b.textContent = show ? "HIDE" : "SHOW";
-    b.setAttribute("aria-label", show ? "Hide password" : "Show password");
-  }));
-
-  /* password strength (a hint only; the server has the real rules) */
-  function score(pw) {
-    if (!pw) return 0;
-    let s = 0;
-    if (pw.length >= 8) s++;
-    if (pw.length >= 12) s++;
-    if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) s++;
-    if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) s++;
-    if (/^(.)\1+$/.test(pw) || /password|qwerty|123456|payguard/i.test(pw)) s = 1;
-    return Math.max(1, Math.min(4, s));
-  }
-  const LABEL = ["", "weak", "okay", "good", "strong"];
-  $$("form").forEach(f => {
-    const pw = f.querySelector('input[name="password"]'), bar = f.querySelector(".strength");
-    if (!pw || !bar) return;
-    pw.addEventListener("input", () => { const s = score(pw.value); bar.dataset.s = s; bar.querySelector("small").textContent = LABEL[s]; });
-  });
-
-  /* ------------------------------------------------------------------ submit helpers */
-  const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  function fail(f, msg, field) {
-    f.querySelector(".err").textContent = msg;
-    $$("input", f).forEach(i => i.classList.remove("bad"));
-    if (field && f[field]) { f[field].classList.add("bad"); f[field].focus(); }
-    const t = $("#term");
-    t.classList.remove("shake"); void t.offsetWidth; t.classList.add("shake");
-    log("> access denied.");
-  }
-  async function run(f, fn) {
-    const btn = f.querySelector(".submit");
-    if (btn.classList.contains("busy")) return;
-    f.querySelector(".err").textContent = "";
-    btn.classList.add("busy"); btn.disabled = true;
-    try { await fn(); } catch (e) { fail(f, e.message, e.field); }
-    finally { btn.classList.remove("busy"); btn.disabled = false; }
-  }
-  function granted(user, sub) {
-    $("#pane-forms").hidden = true;
-    $("#granted").hidden = false;
-    $("#term").classList.add("win");
-    $("#granted-sub").textContent = sub || `Welcome, ${PG.first(user)}. Redirecting…`;
-    log("> access granted.");
-    decrypt($(".granted-text"), 700);
-    if (window.rainBurst) window.rainBurst();
-    setTimeout(() => { location.href = next; }, reduced ? 400 : 1500);
-  }
-
-  forms.login.addEventListener("submit", e => {
-    e.preventDefault();
-    const f = forms.login, email = f.email.value.trim(), password = f.password.value;
-    if (!EMAIL.test(email)) return fail(f, "Enter a valid email address.", "email");
-    if (!password) return fail(f, "Enter your password.", "password");
-    log("> verifying credentials…");
-    run(f, async () => { const d = await PG.api("/api/auth/login", "POST", { email, password }); granted(d.user); });
-  });
-
-  forms.register.addEventListener("submit", e => {
-    e.preventDefault();
-    const f = forms.register;
-    const body = { name: f.name.value.trim(), email: f.email.value.trim(), password: f.password.value, lang: f.lang.value };
-    if (!body.name) return fail(f, "Tell us your name.", "name");
-    if (!EMAIL.test(body.email)) return fail(f, "Enter a valid email address.", "email");
-    if (body.password.length < 8) return fail(f, "Use at least 8 characters.", "password");
-    log("> provisioning your account…");
-    run(f, async () => {
-      const d = await PG.api("/api/auth/signup", "POST", body);
-      granted(d.user, `Account created. Check ${d.user.email} to confirm it.`);
-    });
-  });
-
-  forms.forgot.addEventListener("submit", e => {
-    e.preventDefault();
-    const f = forms.forgot, email = f.email.value.trim();
-    if (!EMAIL.test(email)) return fail(f, "Enter a valid email address.", "email");
-    run(f, async () => {
-      const d = await PG.api("/api/auth/forgot", "POST", { email });
-      f.querySelector(".ok").textContent = d.message;
-      log("> if the account exists, the link is on its way.");
-    });
-  });
-
-  forms.reset.addEventListener("submit", e => {
-    e.preventDefault();
-    const f = forms.reset;
-    if (f.password.value.length < 8) return fail(f, "Use at least 8 characters.", "password");
-    if (f.password.value !== f.password2.value) return fail(f, "The two passwords don't match.", "password2");
-    run(f, async () => {
-      const d = await PG.api("/api/auth/reset", "POST", { token: q.get("reset"), password: f.password.value });
-      history.replaceState(null, "", "/login");
-      granted(d.user, "Password changed. Other devices were signed out.");
-    });
-  });
 
   /* ------------------------------------------------------------------ start */
-  if (q.get("reset")) setMode("reset", false);
-  else setMode(q.get("mode") === "register" ? "register" : "login", false);
-
-  if (!q.get("reset")) PG.me().then(({ user }) => {
-    if (!user) return;
-    $("#pane-forms").hidden = true;
-    $("#pane-signed").hidden = false;
-    $("#signed-name").textContent = user.name || PG.first(user);
-    $("#signed-email").textContent = user.email;
-    $("#pane-signed .btn-red").href = next;
-    log("> session active on this device.");
-  });
-  $("#signed-out").addEventListener("click", async () => {
-    try { await PG.api("/api/auth/logout", "POST", {}); } catch (e) { /* ignore */ }
-    location.reload();
-  });
+  async function start() {
+    // the "wasn't me" link from a sign-in alert email: sign the account out everywhere, then let the owner back in
+    if (q.get("reset")) {
+      try {
+        await PG.api("/api/auth/lockout", "POST", { token: q.get("reset") });
+        $("#auth-note").textContent = "Every device was signed out of your account. Sign in, then use \"Forgot password?\" to choose a new password.";
+        log("> account locked down. all sessions ended.");
+      } catch (e) { fail(e.status === 400 ? "This link has expired or was already used." : e.message); }
+      history.replaceState(null, "", "/login");
+    }
+    const c = await PG.clerk();
+    const { user } = await PG.me();
+    if (user) {
+      $("#pane-forms").hidden = true;
+      $("#pane-signed").hidden = false;
+      $("#signed-name").textContent = user.name || PG.first(user);
+      $("#signed-email").textContent = user.email;
+      $("#pane-signed .btn-red").href = next;
+      log("> session active on this device.");
+      return;
+    }
+    if (c && c.session) {                             // Clerk says signed in, PayGuard's server didn't accept it
+      tabs.hidden = true;
+      $("#pane-signed").hidden = false;
+      $("#pane-signed .who-line").textContent = "You're signed in, but PayGuard couldn't confirm this session (unverified email, or the server is missing its Clerk keys). Sign out and try again.";
+      $("#pane-signed .row-btns").hidden = true;
+      return fail("Session not accepted.");
+    }
+    setMode(q.get("mode") === "register" ? "register" : "login", false);
+  }
+  start();
+  $("#signed-out").addEventListener("click", () => PG.signOut("/login"));
 })();

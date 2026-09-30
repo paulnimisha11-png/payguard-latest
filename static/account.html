@@ -73,14 +73,10 @@
 
     <!-- security -->
     <section class="panel" aria-labelledby="h-sec">
-      <h2 id="h-sec"><i class="ic red"></i> Password</h2>
-      <form id="f-pass" novalidate>
-        <label class="fl2"><span>Current password</span><input name="current" type="password" autocomplete="current-password" required></label>
-        <label class="fl2"><span>New password</span><input name="new" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"></label>
-        <p class="ferr" role="alert"></p>
-        <button class="btn-red" type="submit"><span>Change password</span></button>
-        <p class="hint">Other devices stay signed in. To sign them out, use the list below.</p>
-      </form>
+      <h2 id="h-sec"><i class="ic red"></i> Password &amp; sign-in</h2>
+      <p class="hint">Your password, email addresses and Google sign-in are kept by Clerk, our sign-in provider. PayGuard never sees your password.</p>
+      <button class="btn-red" type="button" id="manage-sec"><span>Manage password &amp; sign-in</span></button>
+      <p class="hint">Other devices stay signed in. To sign them out, use the list below.</p>
     </section>
 
     <!-- devices -->
@@ -109,9 +105,9 @@
     <!-- danger -->
     <section class="panel wide danger-zone" aria-labelledby="h-del">
       <h2 id="h-del"><i class="ic red"></i> Delete account</h2>
-      <p>This removes your profile, history and every session for good. Reports you made about scammers stay (they never contained your details).</p>
+      <p>This removes your profile, history, every session and your sign-in for good. Reports you made about scammers stay (they never contained your details).</p>
       <form id="f-del" class="del-row" novalidate>
-        <input name="password" type="password" autocomplete="current-password" placeholder="Your password to confirm" required>
+        <input name="confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Type DELETE to confirm" required>
         <button class="btn-ghost danger" type="submit">Delete my account</button>
       </form>
       <p class="ferr" role="alert"></p>

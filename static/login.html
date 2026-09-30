@@ -60,76 +60,19 @@
 
       <div id="pane-forms">
         <div class="tabs" role="tablist" aria-label="Sign in or create account">
-          <button role="tab" id="tab-login" aria-selected="true" aria-controls="f-login" data-mode="login">LOGIN</button>
-          <button role="tab" id="tab-register" aria-selected="false" aria-controls="f-register" data-mode="register">REGISTER</button>
+          <button role="tab" id="tab-login" aria-selected="true" aria-controls="clerk-box" data-mode="login">LOGIN</button>
+          <button role="tab" id="tab-register" aria-selected="false" aria-controls="clerk-box" data-mode="register">REGISTER</button>
           <i class="tab-ink" aria-hidden="true"></i>
         </div>
 
-        <!-- login -->
-        <form class="pane" id="f-login" data-mode="login" role="tabpanel" aria-labelledby="tab-login" novalidate>
-          <label class="field"><span>EMAIL</span>
-            <input name="email" type="email" autocomplete="username" inputmode="email" required placeholder="you@example.com" autocapitalize="none" spellcheck="false"></label>
-          <label class="field"><span>PASSWORD</span>
-            <div class="pw"><input name="password" type="password" autocomplete="current-password" required placeholder="••••••••••">
-              <button type="button" class="eye" aria-label="Show password">SHOW</button></div></label>
-          <p class="err" role="alert"></p>
-          <button class="btn-red big submit" type="submit"><span>Authenticate</span></button>
-          <div class="under">
-            <button class="linkish" type="button" data-go="forgot">Forgot password?</button>
-            <span class="stay">Stays signed in for 30 days</span>
-          </div>
-        </form>
-
-        <!-- register -->
-        <form class="pane" id="f-register" data-mode="register" role="tabpanel" aria-labelledby="tab-register" novalidate hidden>
-          <label class="field"><span>NAME</span>
-            <input name="name" autocomplete="name" required maxlength="60" placeholder="What should we call you?"></label>
-          <label class="field"><span>EMAIL</span>
-            <input name="email" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com" autocapitalize="none" spellcheck="false"></label>
-          <label class="field"><span>PASSWORD</span>
-            <div class="pw"><input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
-              <button type="button" class="eye" aria-label="Show password">SHOW</button></div></label>
-          <div class="strength" aria-hidden="true"><i></i><i></i><i></i><i></i><small></small></div>
-          <label class="field"><span>LANGUAGE FOR EMAILS</span>
-            <select name="lang"><option value="en">English</option><option value="hi">हिंदी</option><option value="kn">ಕನ್ನಡ</option></select></label>
-          <p class="err" role="alert"></p>
-          <button class="btn-red big submit" type="submit"><span>Create account</span></button>
-          <p class="fine">We email you when someone signs in to your account. We never sell or share your data, and every scanner still works without an account.</p>
-        </form>
-
-        <!-- forgot -->
-        <form class="pane" id="f-forgot" data-mode="forgot" novalidate hidden>
-          <p class="pane-note">Enter your email. If it has a PayGuard account we'll send a reset link that works for 1 hour.</p>
-          <label class="field"><span>EMAIL</span>
-            <input name="email" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com" autocapitalize="none" spellcheck="false"></label>
-          <p class="err" role="alert"></p>
-          <p class="ok" role="status"></p>
-          <button class="btn-red big submit" type="submit"><span>Send reset link</span></button>
-          <div class="under"><button class="linkish" type="button" data-go="login">← Back to login</button></div>
-        </form>
-
-        <!-- reset -->
-        <form class="pane" id="f-reset" data-mode="reset" novalidate hidden>
-          <p class="pane-note">Choose a new password. This signs you out on every other device.</p>
-          <label class="field"><span>NEW PASSWORD</span>
-            <div class="pw"><input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
-              <button type="button" class="eye" aria-label="Show password">SHOW</button></div></label>
-          <div class="strength" aria-hidden="true"><i></i><i></i><i></i><i></i><small></small></div>
-          <label class="field"><span>REPEAT</span>
-            <input name="password2" type="password" autocomplete="new-password" required placeholder="Same again"></label>
-          <p class="err" role="alert"></p>
-          <button class="btn-red big submit" type="submit"><span>Set new password</span></button>
-        </form>
-      </div>
-
-      <div class="granted" id="granted" aria-live="polite" hidden>
-        <div class="granted-ring"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34"/><path d="M26 41l9 9 19-20"/></svg></div>
-        <p class="granted-text" data-text="ACCESS GRANTED">ACCESS GRANTED</p>
-        <small id="granted-sub"></small>
+        <p class="ok" id="auth-note" role="status"></p>
+        <!-- Clerk's sign-in / sign-up form (Google, email, verification, password recovery) is mounted here -->
+        <div class="pane clerk-box" id="clerk-box" role="tabpanel" aria-live="polite"></div>
+        <p class="err" id="auth-err" role="alert"></p>
       </div>
     </div>
   </section>
-  <p class="foot-note">Protected by rate limits, httpOnly session cookies and scrypt password hashing. Lost money to a scam? Call <a href="tel:1930">1930</a>.</p>
+  <p class="foot-note">Sign-in is handled by Clerk: Google or your email, with verified addresses only. PayGuard never sees your password. Lost money to a scam? Call <a href="tel:1930">1930</a>.</p>
 </main>
 
 <div class="cy-toast" id="cy-toast" role="status"></div>

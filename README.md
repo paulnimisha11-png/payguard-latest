@@ -55,28 +55,44 @@ Deploy: `render.yaml` (Render → New → Blueprint), or any Docker host.
 - `/` is the landing page (scroll story with an animated hooded figure, live numbers from `/api/trends`). The scanner is at `/app`;
   old links such as `/?check=…`, `/?share_text=…` and `/?source=pwa` still open the scanner.
 - `/login` is the sign-in / register terminal, `/account` the account page. **Every scanner works without an account.**
+- Sign-in is done by [Clerk](https://clerk.com): Google or email, with email verification and password recovery.
+  ClerkJS is loaded with a script tag by `static/pgauth.js` (no build step); PayGuard never sees a password.
 - Signed-in users get: their check history (verdicts only, scammer IDs masked; never messages, photos or files),
-  an email on every new sign-in with a one-click "wasn't me" reset link, a list of signed-in devices they can sign out,
-  password change / reset, and account deletion.
-- Security: passwords hashed with scrypt; sessions are random 256-bit tokens in an `HttpOnly; Secure; SameSite=Lax`
-  cookie and only their SHA-256 is stored; 30-day sliding sign-in; CSRF blocked (JSON-only + Origin check);
-  brute-force limits stored in the database (6 wrong passwords per account / 30 per network per 15 min, 10 sign-ups per network per hour);
-  the same error for "no such account" and "wrong password"; one-time links are stored hashed and expire.
+  an email on every new sign-in with a one-click "wasn't me" link that signs the account out everywhere, a list of
+  signed-in devices they can sign out, and account deletion (type DELETE; also removes the Clerk user).
+- How it fits together: the browser sends Clerk's short-lived session token with every `/api/` call
+  (`Authorization: Bearer …`, or Clerk's `__session` cookie). `app/auth/clerk.py` verifies it with Clerk's Python SDK
+  (`authenticate_request`; the token must have been issued for this site). `pg_users.clerk_user_id` links the Clerk
+  user to the PayGuard account. **Accounts created before Clerk** are linked the first time their owner signs in
+  through Clerk with the same *verified* email, so profile and history carry over; their old passwords are not used.
+- Security: only verified emails can link or create an account; state-changing calls are JSON-only with an Origin
+  check (CSRF); sessions ended from the account page are refused at once and revoked at Clerk; one-time links are
+  stored hashed and expire. The old `/api/auth/login`, `signup`, `forgot`, `reset` and `password` endpoints answer 410.
+- Sign-in alerts work without a Clerk webhook: the server sends one the first time it sees a new Clerk session, i.e.
+  when that device first opens PayGuard after signing in. Alerting at the moment of sign-in (even if the site is
+  never opened) would need Clerk's `session.created` webhook; that is not wired up yet.
 
 ### Accounts: environment variables
-Without these the site still works: accounts are stored in the local SQLite file and emails are printed to the server log.
+Without the two Clerk keys sign-in is switched off and every scanner still works. Without the rest, accounts are stored in the local SQLite file and emails are printed to the server log.
+Run locally: put the keys in a `.env` file next to `requirements.txt` (it is gitignored and read at start-up; real environment variables win), then `uvicorn app.main:app --reload --port 8000` and open http://localhost:8000/login. If your `.env` also sets `PUBLIC_URL` to the deployed site, add `CLERK_AUTHORIZED_PARTIES=http://localhost:8000`, otherwise sign-ins made on localhost are refused.
 | Variable | Effect |
 |---|---|
+| `CLERK_PUBLISHABLE_KEY` | Clerk Dashboard → API keys (`pk_test_…`). Public: the browser gets it from `/api/auth/config`. |
+| `CLERK_SECRET_KEY` | `sk_test_…`. **Secret, server only**: never put it in the repo, `render.yaml` or any file under `static/`. |
+| `CLERK_AUTHORIZED_PARTIES` | Optional, comma-separated extra origins whose session tokens are accepted, e.g. `http://localhost:8000` when `PUBLIC_URL` points at the deployed site but you are testing on your laptop. Not needed on Render. |
+| `CLERK_JWT_KEY` | Optional. The instance's "JWKS Public Key" (PEM; `\n` for line breaks is fine). Session tokens are then verified without calling Clerk. |
 | `DATABASE_URL` | Postgres for accounts, e.g. Supabase's **transaction pooler** string (`postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres`). Needed on Render, whose disk is wiped on every deploy. |
 | `BREVO_API_KEY` or `RESEND_API_KEY` | Send emails through Brevo or Resend's HTTP API (Render's free plan blocks SMTP) |
 | `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | Or send through SMTP (e.g. a Gmail app password) when running locally |
 | `MAIL_FROM` / `MAIL_FROM_NAME` | Sender address (must be verified with Brevo/Resend) and name |
-| `PUBLIC_URL` | Site address used in email links (defaults to the address the request came to) |
+| `PUBLIC_URL` | This site's address, e.g. `https://<your-app>.onrender.com` (only the origin is used; a path is ignored). Used in email links, and Clerk session tokens are only accepted when issued for it. Unset, the address the request came to is used: fine locally, not in production. |
 
 Set-up on Render (about 10 minutes):
 1. **Supabase** (free): create a project → *Connect* → copy the *Transaction pooler* URI, put your database password in it → Render → Environment → `DATABASE_URL`. Tables are created automatically on first start.
 2. **Brevo** (free, 300 emails/day): *Senders & IP* → add and verify your sender email → *SMTP & API* → create an API key → Render → `BREVO_API_KEY`, `MAIL_FROM`.
-3. `PUBLIC_URL` = `https://<your-app>.onrender.com`. Redeploy, then open `/api/health`: it should show `"accounts_db": "postgres"`, `"accounts_db_ok": true`, `"email": "brevo"`.
+3. `PUBLIC_URL` = `https://<your-app>.onrender.com` (sign-in tokens are only accepted for this address).
+4. **Clerk**: `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` (and optionally `CLERK_JWT_KEY`) from the Clerk Dashboard. Redeploy, then open `/api/health`: it should show `"accounts_db": "postgres"`, `"accounts_db_ok": true`, `"email": "brevo"`, `"sign_in": "clerk"`.
+   The Clerk *Development* instance works on any address but shows a development notice; a Production instance needs a domain you own.
 
 Note: scan reports, community reports, trends and family links still use the local SQLite file, so on Render's free plan they reset when the service restarts.
 
@@ -189,7 +205,7 @@ app/message/analyzer.py  Scam message checker (scripts, actions, pressure, entit
 app/trends.py            Trends aggregation, public-listing rules, masking, lookup
 app/family/              Family guardian mode (devices, codes, links, alerts) + push.py (Web Push, no extra deps)
 scripts/seed_demo.py     Labelled demo data for the trends page
-app/auth/                Accounts: db.py (SQLite or Postgres), passwords.py (scrypt), service.py, api.py, mailer.py, emails.py (EN/HI/KN)
+app/auth/                Accounts: clerk.py (Clerk session tokens + Backend API), db.py (SQLite or Postgres), service.py, api.py, mailer.py, emails.py (EN/HI/KN)
 static/                  Web app (vanilla JS, mobile-first, EN/हिंदी/ಕನ್ನಡ, read-aloud); trends.html, family.html, admin.html
 static/landing.*         Landing page (/): hooded-figure scroll story, warp canvas, live counters
 static/login.*, account.*, pgauth.js   Sign-in terminal, account page, shared account helpers + user menu
