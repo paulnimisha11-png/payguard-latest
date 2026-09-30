@@ -118,6 +118,17 @@
                 android:maxLength="20000"
                 android:minLines="3" />
 
+            <EditText
+                android:id="@+id/msgSender"
+                style="@style/Input"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:hint="@string/msg_sender_hint"
+                android:inputType="text|textNoSuggestions"
+                android:maxLength="40"
+                android:singleLine="true" />
+
             <Button
                 android:id="@+id/btnCheckMsg"
                 style="@style/Btn.Primary"

@@ -14,7 +14,7 @@
     $("#bar").style.width = "70%";
     A.show("progress");
     try {
-      const res = await fetch("/api/message", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
+      const res = await fetch("/api/message", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text, sender: ($("#msgsender").value || "").trim() || null, use_ai: $("#msgai").checked, source: "web" }) });
       let data;
       try { data = await res.json(); } catch (_) { data = { error: "Server error (" + res.status + ")" }; }
       $(".steps").hidden = false;
@@ -57,7 +57,54 @@
     return out + esc(text.slice(at));
   }
 
+  // ---- the layered result: risk level, factors, sender, links, Scam Memory, threat intel, AI, safe actions, layers
+  const RISK_TEXT = { HIGH: "HIGH RISK", MEDIUM: "MEDIUM RISK", LOW: "LOW RISK — be careful", MINIMAL: "NO SCAM SIGNS FOUND" };
+  const LAYER_NAME = { rules: "Message rules", urls: "Link analysis", sender: "Sender check", memory: "Scam Memory",
+    threat_intel: "Threat intelligence", ai: "AI reading (Gemini Flash)" };
+  const ST = { ok: ["✓", "c-pass"], not_needed: ["–", "c-skipped"], skipped: ["–", "c-skipped"], not_provided: ["–", "c-skipped"],
+    disabled: ["○", "c-skipped"], timeout: ["!", "c-warn"], error: ["!", "c-warn"] };
+  const LAYER_LABEL = { rules: "rules", url: "link", sender: "sender", memory: "Scam Memory", threat_intel: "threat intel", ai: "AI" };
+
+  function renderRisk(r) {
+    const k = r.risk, d = r.details, L = A.lang(), card = $("#riskcard");
+    if (!k) { card.hidden = true; return; }
+    const tr = (o) => (o && (o[L] || o.en)) || "";
+    const lay = k.layers || {};
+    const s = d.sender || {};
+    const senderTxt = s.raw ? `${s.raw} · ${(lay.sender || {}).detail || ""}${s.org ? " (" + s.org.toUpperCase() + ")" : ""}` : "Not provided";
+    const links = (d.links || []).map((l) => `<li><span class="mono">${esc(l.host || l.domain)}</span>${l.path && l.path !== "/" ? `<span class="mono dim">${esc(l.path.slice(0, 40))}</span>` : ""}
+      <span class="tag ${l.official ? "ok" : (l.heuristics || []).length || l.level === "danger" || l.level === "suspicious" ? "bad" : "meh"}">${l.official ? "official" : l.shortener ? "short link" : l.is_ip ? "IP address" : "not official"}</span></li>`).join("");
+    const mem = (r.sms || {}).memory || { matches: [] };
+    const memTxt = (mem.matches || []).length
+      ? mem.matches.slice(0, 3).map((m) => `${esc(m.label)} <span class="mono">${esc(m.value)}</span>: ${m.reports} report${m.reports === 1 ? "" : "s"}${m.disputed ? " (disputed)" : ""}`).join("<br>")
+      : esc((lay.memory || {}).detail || "No reports found");
+    const ti = lay.threat_intel || {};
+    const ai = r.ai;
+    const aiTxt = ai ? `<p class="rk-ai"><b>AI (${esc(ai.risk_level.toLowerCase())} risk${ai.cached ? ", cached" : ""}):</b> ${esc(ai.reason)}</p>`
+      : `<p class="rk-ai dim">AI reading: ${esc((lay.ai || {}).detail || "not used")}</p>`;
+    card.className = "card riskcard rk-" + k.level.toLowerCase();
+    card.innerHTML = `
+      <div class="rk-head"><span class="rk-badge">${esc(RISK_TEXT[k.level] || k.level)}</span>
+        <span class="rk-score" title="${esc(k.score_note)}">${k.score}/100 risk points <small>(not a probability)</small></span></div>
+      ${k.factors.length ? `<ul class="rk-factors">${k.factors.slice(0, 8).map((f) => `<li class="sev-${f.severity}"><span>${esc(tr(f.title))}</span><em>${esc(LAYER_LABEL[f.layer] || f.layer)}</em></li>`).join("")}</ul>`
+        : `<p class="dim">No risk factors found by any layer.</p>`}
+      ${aiTxt}
+      <dl class="rk-facts">
+        <dt>Sender</dt><dd>${esc(senderTxt)}</dd>
+        <dt>Links</dt><dd>${links ? `<ul class="rk-links">${links}</ul>` : "None"}</dd>
+        <dt>Scam Memory</dt><dd>${memTxt}</dd>
+        <dt>${esc(ti.service || "Threat intelligence")}</dt><dd>${esc(ti.detail || "")}</dd>
+      </dl>
+      <h4>What to do</h4><ul class="rk-safe">${k.safe_actions.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
+      <details class="rk-layers"><summary>How this was checked (${Object.keys(lay).length} layers)</summary>
+        <ul>${Object.entries(lay).map(([id, x]) => { const [ic, cls] = ST[x.status] || ["?", "c-skipped"];
+          return `<li class="${cls}"><span class="ic">${ic}</span><b>${esc(LAYER_NAME[id] || id)}</b> <span class="dim">${esc(x.detail || x.status)}</span></li>`; }).join("")}</ul>
+        <p class="dim small">Score = weighted evidence from all layers; the AI can add at most 25 points, can't lower a score and can't make a message HIGH risk on its own.</p>
+      </details>`;
+  }
+
   window.renderMsgCard = (r) => {
+    renderRisk(r);
     const d = r.details, t = A.t, L = A.lang();
     const asks = d.asks || [];
     const rows = [];

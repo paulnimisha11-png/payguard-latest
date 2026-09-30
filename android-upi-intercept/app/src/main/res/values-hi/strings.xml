@@ -137,4 +137,13 @@
     <string name="fam_status_protected">अगर आप किसी ठगी में फँसें तो %1$s को अलर्ट मिलेगा।</string>
     <string name="notif_channel">परिवार अलर्ट</string>
     <string name="notif_channel_desc">जब आपके परिजन किसी ठगी में फँसने वाले हों</string>
+    <string name="msg_sender_hint">भेजने वाला, अगर पता हो (जैसे VM-SBIINB या +91 98…)</string>
+    <string name="risk_level">जोखिम स्तर</string>
+    <string name="risk_points">%1$d/100 जोखिम अंक (संभावना नहीं)</string>
+    <string name="risk_factors">क्यों</string>
+    <string name="risk_sender">भेजने वाला</string>
+    <string name="risk_ai">AI का आकलन</string>
+    <string name="risk_memory">Scam Memory</string>
+    <string name="risk_ti">थ्रेट इंटेलिजेंस</string>
+    <string name="risk_safe">क्या करें</string>
 </resources>

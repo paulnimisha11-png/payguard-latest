@@ -70,6 +70,11 @@
       <form id="msgform" class="msgform">
         <label for="msgtext" class="msg-label" data-i="msg_label">Paste the SMS, WhatsApp message or email you received</label>
         <textarea id="msgtext" rows="6" maxlength="20000" spellcheck="false" placeholder="Dear Consumer, your electricity will be disconnected tonight at 9.30pm…"></textarea>
+        <div class="msg-opts">
+          <label class="msg-sender"><span data-i="msg_sender">Sender (optional)</span>
+            <input id="msgsender" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="VM-SBIINB or +91 98…"></label>
+          <label class="msg-ai"><input id="msgai" type="checkbox" checked> <span data-i="msg_ai">Also ask AI when unsure</span></label>
+        </div>
         <div class="msg-actions">
           <button class="btn light" type="button" id="msg-paste"><span aria-hidden="true">📋</span> <span data-i="msg_paste">Paste</span></button>
           <button class="btn light" type="button" id="msg-example" data-i="msg_example">Try an example</button>
@@ -204,6 +209,7 @@
     <div id="mlcard" class="card mlcard" hidden aria-live="polite"></div>
     <div id="guardcard" class="card guardcard" hidden></div>
     <div id="aicard" class="card aicard" hidden aria-live="polite"></div>
+    <div id="riskcard" class="card riskcard" hidden aria-live="polite"></div>
     <div id="msgcard" class="card msgcard" hidden></div>
     <div id="qrcard" class="card qrcard" hidden></div>
     <div id="verifycard" class="card verifycard" hidden aria-live="polite"></div>

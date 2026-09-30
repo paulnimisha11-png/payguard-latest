@@ -23,6 +23,8 @@ import re
 import unicodedata
 
 from ..analyzer.rules import SEVERITY_ORDER, T, Finding
+from .urlcheck import check_url
+from .urlextract import extract_urls
 from ..qr.analyzer import AUTHORITY_WORDS, BRAND_DOMAINS, KNOWN_PSP_HANDLES, analyze_payload
 
 MAX_LEN = 5000
@@ -233,11 +235,9 @@ def _spans(pattern: re.Pattern, text: str, kind: str, out: list) -> list[str]:
 
 
 def _extract(text: str) -> dict:
-    urls, upis, phones, tollfree = [], [], [], []
-    for m in URL_RE.finditer(text):
-        u = m.group(0).rstrip(".,;:!?)]}'\"")
-        if u.lower() not in [x.lower() for x in urls]:
-            urls.append(u)
+    upis, phones, tollfree = [], [], []
+    parsed = extract_urls(text)                  # regex + urllib.parse, handles hxxp / [.] / zero-width tricks
+    urls = [p["raw"] for p in parsed]
     for m in UPI_RE.finditer(text):
         handle = m.group(2).lower()
         full = m.group(0)
@@ -268,7 +268,8 @@ def _extract(text: str) -> dict:
             amounts.append(float(m.group(1).replace(",", "")))
         except ValueError:
             pass
-    return {"urls": urls[:10], "upi_ids": upis[:10], "phones": phones[:10], "tollfree": tollfree[:5], "amounts": amounts[:10]}
+    return {"urls": urls[:10], "parsed_urls": parsed[:10], "upi_ids": upis[:10], "phones": phones[:10], "tollfree": tollfree[:5],
+            "amounts": amounts[:10]}
 
 
 SPECIFIC = {"fastag", "challan", "digital_arrest", "family_emergency", "wrong_transfer", "loan", "investment"}  # win ties over generic KYC/refund words
@@ -394,16 +395,15 @@ def analyze_message(raw: str) -> dict:
 
     # ---- links: run each through the same checks as a scanned QR link
     link_reports, worst_link, unofficial = [], None, []
-    for u in ent["urls"]:
-        try:
-            r = analyze_payload(u)
-        except ValueError:
-            continue
-        d = r["details"]
-        wa = (d.get("registered_domain") or "") in ("wa.me", "whatsapp.com")
-        item = {"url": u, "domain": d.get("registered_domain") or d.get("host"), "official": bool(d.get("official")) or (d.get("host") or "").endswith((".gov.in", ".nic.in")),
-                "level": r["verdict"]["level"], "score": r["verdict"]["score"],
-                "reasons": [f["title"] for f in r["findings"] if f["severity"] in ("critical", "high", "medium")][:3], "whatsapp": wa}
+    for p in ent["parsed_urls"]:
+        c = check_url(p)                         # existing link rules + URL heuristics (nothing is opened)
+        wa = c["whatsapp"]
+        item = {"url": p["raw"], "domain": c["domain"] or c["host"], "official": c["official"],
+                "level": c["rule_level"], "score": c["rule_score"],
+                "reasons": [s_["title"] for s_ in c["signals"] if s_["source"] == "link_rules" and s_["severity"] in ("critical", "high", "medium")][:3],
+                "whatsapp": wa, "host": c["host"], "path": c["path"], "query": c["query"], "https": c["https"], "is_ip": c["is_ip"],
+                "shortener": c["shortener"], "subdomain_levels": c["subdomain_levels"], "idn": c["idn"],
+                "obfuscation": p.get("obfuscation") or [], "heuristics": c["extra"]}
         link_reports.append(item)
         if not item["official"] and not wa:
             unofficial.append(item)
@@ -547,6 +547,7 @@ def analyze_message(raw: str) -> dict:
             "asks": [{"id": a, "label": ACTION_LABELS[a]} for a in dict.fromkeys(actions)],
             "links": link_reports, "upi_ids": ent["upi_ids"], "phones": ent["phones"], "tollfree": ent["tollfree"],
             "amounts": ent["amounts"], "highlights": spans, "template": template_hash(text), "length": len(text),
+            "otp_delivery": bool(OTP_CODE.search(text) and CRED_WORD.search(text) and NEGATION.search(text)),
         },
         "verdict": {"score": score, "level": level, "headline": headline, "advice": advice},
         "findings": [f.to_dict() for f in F],

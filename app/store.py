@@ -399,3 +399,29 @@ def reported_ids(kind: str, limit: int = 20000) -> list[str]:
                               UNION SELECT value FROM votes WHERE kind=? AND reason<>'not_scam' LIMIT ?""",
                            (kind, kind, limit)).fetchall()
     return [r[0] for r in rows]
+
+
+# ------------------------------------------------------------------ small result cache (SMS AI layer, threat intel)
+# Keyed by a hash of what was asked; stores only the service's structured answer (never message text).
+with _lock:
+    _db.execute("CREATE TABLE IF NOT EXISTS kv_cache(ns TEXT, key TEXT, value TEXT, created REAL, PRIMARY KEY(ns, key))")
+    _db.commit()
+
+
+def cache_get(ns: str, key: str, ttl: float) -> dict | None:
+    with _lock:
+        row = _db.execute("SELECT value, created FROM kv_cache WHERE ns=? AND key=?", (ns, key)).fetchone()
+    if not row or time.time() - row[1] > ttl:
+        return None
+    try:
+        return json.loads(row[0])
+    except ValueError:
+        return None
+
+
+def cache_put(ns: str, key: str, value: dict) -> None:
+    with _lock:
+        _db.execute("INSERT OR REPLACE INTO kv_cache VALUES (?,?,?,?)", (ns, key, json.dumps(value, ensure_ascii=False), time.time()))
+        if int(time.time()) % 50 == 0:                    # occasional clean-up of week-old entries
+            _db.execute("DELETE FROM kv_cache WHERE created < ?", (time.time() - 7 * 86400,))
+        _db.commit()

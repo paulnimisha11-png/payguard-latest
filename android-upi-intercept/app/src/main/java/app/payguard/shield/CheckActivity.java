@@ -51,6 +51,7 @@ public class CheckActivity extends Activity {
     public static final String EXTRA_EXPECTED = "payguard.expected";
     public static final String EXTRA_SMS = "payguard.bank_sms";
     public static final String EXTRA_MESSAGE = "payguard.message";
+    public static final String EXTRA_SENDER = "payguard.sender";   // optional SMS sender typed by the user
     public static final String SETUP_TEST = "upi://pay?pa=payguard.setup@upi&pn=PayGuard%20setup%20check&tn=setup";
 
     private static final int REQ_PAY = 7;
@@ -60,6 +61,8 @@ public class CheckActivity extends Activity {
 
     private String payload;
     private String messageText;
+    private String messageSender = "";
+    private String messageSource = "android_share";
     private Uri imageUri;
     private String imageMode;
     private Uri apkUri;
@@ -151,6 +154,9 @@ public class CheckActivity extends Activity {
         }
         payload = in.getStringExtra(EXTRA_PAYLOAD);
         messageText = in.getStringExtra(EXTRA_MESSAGE);
+        String snd = in.getStringExtra(EXTRA_SENDER);
+        if (snd != null) messageSender = snd.trim();
+        if (messageText != null) messageSource = "android_app";
         String img = in.getStringExtra(EXTRA_IMAGE);
         if (img != null) imageUri = Uri.parse(img);
         imageMode = in.getStringExtra(EXTRA_IMAGE_MODE);
@@ -239,7 +245,11 @@ public class CheckActivity extends Activity {
         final String text = messageText.length() > 20000 ? messageText.substring(0, 20000) : messageText;
         new Thread(() -> {
             try {
-                final JSONObject r = Api.postJson(this, "/api/message", new JSONObject().put("text", text));
+                // Sender and source help the server's sender check; nothing here needs SMS permissions (the text is
+                // pasted or shared by the user). The Gemini key never ships in the app: the server calls Gemini.
+                JSONObject body = new JSONObject().put("text", text).put("source", messageSource);
+                if (!messageSender.isEmpty()) body.put("sender", messageSender.length() > 40 ? messageSender.substring(0, 40) : messageSender);
+                final JSONObject r = Api.postJson(this, "/api/message", body);
                 main.post(() -> render(r));
             } catch (Api.ApiException e) {
                 final String msg = e.getMessage();
@@ -384,7 +394,7 @@ public class CheckActivity extends Activity {
         if ("qr".equals(kind) && "upi".equals(type)) buildUpiCard(d);
         else if ("qr".equals(kind) && "url".equals(type)) buildUrlCard(d);
         else if ("shot".equals(kind)) buildShotCard(r, d);
-        else if ("msg".equals(kind)) buildMsgCard(d);
+        else if ("msg".equals(kind)) buildMsgCard(r, d);
         else if ("qr".equals(kind)) buildTextCard(r.optString("payload"));
         else buildApkCard(r);
 
@@ -607,8 +617,9 @@ public class CheckActivity extends Activity {
         row(getString(R.string.qr_contains), text, true, Color.parseColor("#161A2C"));
     }
 
-    private void buildMsgCard(JSONObject d) {
+    private void buildMsgCard(JSONObject r, JSONObject d) {
         int ink = Color.parseColor("#161A2C");
+        buildRiskSummary(r, d, ink);
         JSONObject cat = d.optJSONObject("category_name");
         if (cat != null) row(getString(R.string.msg_looks_like), Ui.tr(cat, lang), false, Color.parseColor("#B3122F"));
         JSONArray asks = d.optJSONArray("asks");
@@ -634,6 +645,45 @@ public class CheckActivity extends Activity {
         if (upis != null) for (int i = 0; i < upis.length() && i < 3; i++) row(getString(R.string.upi_id), upis.optString(i), true, ink);
         JSONArray phones = d.optJSONArray("phones");
         if (phones != null) for (int i = 0; i < phones.length() && i < 3; i++) row(getString(R.string.msg_phone), phones.optString(i), true, ink);
+    }
+
+    /** The layered SMS result: risk level, main factors, sender, AI reading, Scam Memory, threat intel, what to do. */
+    private void buildRiskSummary(JSONObject r, JSONObject d, int ink) {
+        JSONObject k = r.optJSONObject("risk");
+        if (k == null) return;
+        String lvl = k.optString("level", "");
+        int red = Color.parseColor("#B3122F");
+        row(getString(R.string.risk_level), lvl + " · " + getString(R.string.risk_points, k.optInt("score")), false,
+                "HIGH".equals(lvl) || "MEDIUM".equals(lvl) ? red : ink);
+        JSONArray fs = k.optJSONArray("factors");
+        if (fs != null && fs.length() > 0) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < fs.length() && i < 6; i++) {
+                JSONObject f = fs.optJSONObject(i);
+                if (f != null) sb.append(i > 0 ? "\n" : "").append("• ").append(Ui.tr(f.optJSONObject("title"), lang));
+            }
+            row(getString(R.string.risk_factors), sb.toString(), false, ink);
+        }
+        JSONObject layers = k.optJSONObject("layers");
+        JSONObject snd = d.optJSONObject("sender");
+        if (snd != null && !snd.optString("raw").isEmpty()) {
+            JSONObject sl = layers == null ? null : layers.optJSONObject("sender");
+            row(getString(R.string.risk_sender), snd.optString("raw") + (sl == null ? "" : " · " + sl.optString("detail")), false, ink);
+        }
+        JSONObject ai = r.optJSONObject("ai");
+        JSONObject al = layers == null ? null : layers.optJSONObject("ai");
+        if (ai != null) row(getString(R.string.risk_ai), ai.optString("risk_level") + ": " + ai.optString("reason"), false, ink);
+        else if (al != null) row(getString(R.string.risk_ai), al.optString("detail"), false, Color.parseColor("#5B6078"));
+        JSONObject ml = layers == null ? null : layers.optJSONObject("memory");
+        if (ml != null) row(getString(R.string.risk_memory), ml.optString("detail"), false, ink);
+        JSONObject tl = layers == null ? null : layers.optJSONObject("threat_intel");
+        if (tl != null) row(tl.optString("service", getString(R.string.risk_ti)), tl.optString("detail"), false, ink);
+        JSONArray safe = k.optJSONArray("safe_actions");
+        if (safe != null && safe.length() > 0) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < safe.length() && i < 4; i++) sb.append(i > 0 ? "\n" : "").append("✓ ").append(safe.optString(i));
+            row(getString(R.string.risk_safe), sb.toString(), false, Color.parseColor("#15803D"));
+        }
     }
 
     /** A protected family member chose to go ahead anyway: the server re-checks and alerts their guardians. */

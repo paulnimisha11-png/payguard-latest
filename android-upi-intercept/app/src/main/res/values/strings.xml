@@ -138,4 +138,13 @@
     <string name="fam_status_protected">%1$s gets an alert if you run into a scam.</string>
     <string name="notif_channel">Family alerts</string>
     <string name="notif_channel_desc">When someone you protect runs into a scam</string>
+    <string name="msg_sender_hint">Sender, if you know it (e.g. VM-SBIINB or +91 98…)</string>
+    <string name="risk_level">Risk level</string>
+    <string name="risk_points">%1$d/100 risk points (not a probability)</string>
+    <string name="risk_factors">Why</string>
+    <string name="risk_sender">Sender</string>
+    <string name="risk_ai">AI reading</string>
+    <string name="risk_memory">Scam Memory</string>
+    <string name="risk_ti">Threat intelligence</string>
+    <string name="risk_safe">What to do</string>
 </resources>

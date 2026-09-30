@@ -138,9 +138,10 @@ def _parse(text: str) -> dict | None:
 LAST: dict = {}          # last call's outcome, shown in /api/health for debugging (never contains the key)
 
 
-def _record(res: dict, detail: str = "", tried: list | None = None) -> dict:
-    LAST.clear()
-    LAST.update({"status": res["status"], "reason": res.get("reason"), "detail": detail[:300] or None,
+def _record(res: dict, detail: str = "", tried: list | None = None, last: dict | None = None) -> dict:
+    last = LAST if last is None else last
+    last.clear()
+    last.update({"status": res["status"], "reason": res.get("reason"), "detail": detail[:300] or None,
                  "model": res.get("model", model()), "tried": tried or [], "at": int(time.time())})
     if res["status"] != "ok":
         print(f"[gemini] {res['status']} {res.get('reason') or ''} {detail[:300]}", flush=True)   # shows in Render logs
@@ -187,21 +188,31 @@ def models() -> list[str]:
     return out
 
 
+def _budget(env: str, default: float) -> float:
+    try:
+        return float(os.environ.get(env, str(default)))
+    except ValueError:
+        return default
+
+
 async def analyze(rep: dict) -> dict:
     """Returns {"status": "ok", "model", "ms", **FIELDS} or {"status": "disabled"|"timeout"|"error", ...}.
     Never raises. Tries each model in models() within one overall GEMINI_TIMEOUT budget."""
+    return await generate(_bodies(rep), _parse, _budget("GEMINI_TIMEOUT", 25.0), LAST)
+
+
+async def generate(bodies: list[dict], parse, budget: float, last: dict | None = None) -> dict:
+    """Shared Gemini call (APK analyst and the SMS semantic layer): the key only ever comes from GEMINI_API_KEY and is
+    sent as a header to Google, never logged. `bodies`: full request, then a minimal one for HTTP 400. `parse(text)`
+    returns a dict or None. Busy models fall back through models() within `budget` seconds. Never raises."""
     key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not key:
         return {"status": "disabled"}
     started = time.monotonic()
-    try:
-        budget = float(os.environ.get("GEMINI_TIMEOUT", "25"))
-    except ValueError:
-        budget = 25.0
     headers = {"x-goog-api-key": key, "content-type": "application/json"}
     chain = models()
     tried = []
-    last = {"status": "error", "reason": "no model answered", "model": chain[0]}
+    fail = {"status": "error", "reason": "no model answered", "model": chain[0]}
     detail = ""
     async with httpx.AsyncClient(transport=_transport) as c:
         for n, m in enumerate(chain):
@@ -212,29 +223,29 @@ async def analyze(rep: dict) -> dict:
             per_try = left if n == len(chain) - 1 else min(left, max(6.0, left * 0.55))
             tried.append(m)
             try:
-                for i, body in enumerate(_bodies(rep)):
+                for i, body in enumerate(bodies):
                     r = await c.post(ENDPOINT.format(model=m), json=body, headers=headers, timeout=per_try)
                     if r.status_code == 400 and i == 0:      # unsupported field on this model: minimal request once
                         detail = _google_error(r)
                         continue
                     break
                 if r.status_code in RETRYABLE or r.status_code == 404:   # busy, or model not available to this key
-                    last, detail = {"status": "error", "reason": f"http {r.status_code}", "model": m}, _google_error(r)
+                    fail, detail = {"status": "error", "reason": f"http {r.status_code}", "model": m}, _google_error(r)
                     continue
                 if r.status_code != 200:
-                    return _record({"status": "error", "reason": f"http {r.status_code}", "model": m}, _google_error(r), tried)
+                    return _record({"status": "error", "reason": f"http {r.status_code}", "model": m}, _google_error(r), tried, last)
                 data = r.json()
                 cand = (data.get("candidates") or [{}])[0]
                 parts = (cand.get("content") or {}).get("parts") or []
                 text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
-                result = _parse(text)
+                result = parse(text)
                 if not result:
                     why = cand.get("finishReason") or (data.get("promptFeedback") or {}).get("blockReason") or "no JSON"
-                    last, detail = {"status": "error", "reason": f"unreadable reply ({why})", "model": m}, text[:200]
+                    fail, detail = {"status": "error", "reason": f"unreadable reply ({why})", "model": m}, text[:200]
                     continue
-                return _record({"status": "ok", "model": m, "ms": int((time.monotonic() - started) * 1000), **result}, "", tried)
+                return _record({"status": "ok", "model": m, "ms": int((time.monotonic() - started) * 1000), **result}, "", tried, last)
             except httpx.TimeoutException:
-                last, detail = {"status": "timeout", "model": m}, f"no reply within {per_try:.0f}s"
+                fail, detail = {"status": "timeout", "model": m}, f"no reply within {per_try:.0f}s"
             except Exception as e:                                  # network down, bad JSON envelope, ...
-                last, detail = {"status": "error", "reason": type(e).__name__, "model": m}, str(e)[:200]
-    return _record(last, detail, tried)
+                fail, detail = {"status": "error", "reason": type(e).__name__, "model": m}, str(e)[:200]
+    return _record(fail, detail, tried, last)

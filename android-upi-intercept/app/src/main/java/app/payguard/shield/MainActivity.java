@@ -31,7 +31,7 @@ public class MainActivity extends Activity {
     private static final int REQ_NOTIF = 21;
     private TextView serverStatus, defaultStatus, famStatus;
     private Button btnMakeDefault;
-    private EditText paste, expected, bankSms, msgText;
+    private EditText paste, expected, bankSms, msgText, msgSender;
     private final Handler main = new Handler(Looper.getMainLooper());
 
     @Override
@@ -45,6 +45,7 @@ public class MainActivity extends Activity {
         expected = findViewById(R.id.expected);
         bankSms = findViewById(R.id.bankSms);
         msgText = findViewById(R.id.msgText);
+        msgSender = findViewById(R.id.msgSender);
         famStatus = findViewById(R.id.famStatus);
 
         findViewById(R.id.btnCheckMsg).setOnClickListener(v -> checkMessage(msgText.getText().toString()));
@@ -106,6 +107,8 @@ public class MainActivity extends Activity {
         Intent i = new Intent(this, CheckActivity.class);
         if (CheckActivity.isBareLink(t)) i.putExtra(CheckActivity.EXTRA_PAYLOAD, t);
         else i.putExtra(CheckActivity.EXTRA_MESSAGE, t);
+        String snd = msgSender == null ? "" : msgSender.getText().toString().trim();
+        if (!snd.isEmpty()) i.putExtra(CheckActivity.EXTRA_SENDER, snd);
         startActivity(i);
     }
 
