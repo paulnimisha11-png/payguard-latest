@@ -324,7 +324,7 @@
     const act = b.dataset.act;
     if (act === "report") openForm();
     if (act === "back-result") A.show("result");
-    if (act === "back-home") { history.pushState({}, "", "/"); A.show("home"); }
+    if (act === "back-home") { history.pushState({}, "", "/app"); A.show("home"); }
     if (act === "c-share") {
       const c = complaint, lang = L();
       const h = (c.scan && c.scan.headline && (c.scan.headline[lang] || c.scan.headline.en)) || "";
@@ -337,7 +337,7 @@
       const res = await fetch(`/api/complaints/${complaint.ref}?token=${encodeURIComponent(token)}`, { method: "DELETE" });
       if (res.ok) {
         try { localStorage.removeItem("pg_c_" + complaint.ref); localStorage.removeItem("pg_steps_" + complaint.ref); } catch (_) {}
-        complaint = null; history.pushState({}, "", "/"); A.show("home"); A.toast(t("deleted"));
+        complaint = null; history.pushState({}, "", "/app"); A.show("home"); A.toast(t("deleted"));
       }
     }
   });

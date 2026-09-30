@@ -20,6 +20,24 @@ license. Nothing here is copied into our source files except where marked "bundl
 | [ReportLab](https://www.reportlab.com/opensource/) | BSD | Evidence PDF for complaints |
 | [qrcode](https://github.com/lincolnloop/python-qrcode) | BSD | Payment / join QR images |
 | [cryptography](https://github.com/pyca/cryptography) | Apache-2.0 OR BSD-3-Clause | Web Push encryption and signing |
+| [psycopg 3 (psycopg[binary])](https://github.com/psycopg/psycopg) | LGPL-3.0-only | Postgres driver for accounts (used as an unmodified library) |
+
+## Web fonts (loaded from Google Fonts, not bundled)
+| Font | License | Used for |
+|---|---|---|
+| [Orbitron](https://fonts.google.com/specimen/Orbitron) | SIL Open Font License 1.1 | Headings on the landing, sign-in and app pages |
+| [Inter](https://fonts.google.com/specimen/Inter), [JetBrains Mono](https://fonts.google.com/specimen/JetBrains+Mono), Noto Sans (Devanagari, Kannada, Tamil, Telugu, Bengali) | SIL Open Font License 1.1 | Body text, code-style text, Indian scripts |
+
+## Services (optional, configured by environment variables)
+| Service | Used for |
+|---|---|
+| [Supabase](https://supabase.com) (hosted Postgres) or any Postgres | Storing accounts |
+| [Brevo](https://www.brevo.com) or [Resend](https://resend.com) email API | Welcome, sign-in alert and password emails |
+
+## Artwork
+The hooded figure, shield logo, warp-speed light rays, matrix rain and all other visuals are original SVG/canvas drawings
+made for this project (no stock or third-party images). UI effects (3D tilt cards, spotlight, decrypting text, magnetic buttons)
+are our own vanilla JS/CSS implementations inspired by common web-design patterns; no code was copied from UI kits.
 
 ## System programs (installed in the Docker image with apt, not bundled)
 | Program | License | Used for |
@@ -31,6 +49,7 @@ license. Nothing here is copied into our source files except where marked "bundl
 | File(s) | Source | License |
 |---|---|---|
 | `static/vendor/jsQR.js` | [jsQR](https://github.com/cozmo/jsQR) by Cosmo Wolfe | Apache-2.0 (`static/vendor/jsQR.LICENSE`) |
+| `static/vendor/lenis.min.js` | [Lenis](https://github.com/darkroom-engineering/lenis) smooth scroll by darkroom.engineering | MIT (`static/vendor/lenis.LICENSE`) |
 | `tests/fonts/Poppins-*.ttf` | [Poppins](https://github.com/itfoundry/Poppins), The Poppins Project Authors | SIL Open Font License 1.1 (`tests/fonts/OFL.txt`); used only to draw synthetic test receipts |
 | `samples/a2dp.Vol_137.apk` | [A2DP Volume](https://github.com/jroal/a2dpvolume) by Jim Roal, via [F-Droid](https://f-droid.org/en/packages/a2dp.Vol/) | GPL-3.0-only; unmodified binary used as a known-benign test input |
 | `samples/com.politedroid_4.apk` | [Polite Droid](https://github.com/miguelvps/PoliteDroid), from the [F-Droid server test repo](https://github.com/f-droid/fdroidserver/tree/master/tests/repo) | GPL-3.0-only; unmodified binary used as a known-benign test input |

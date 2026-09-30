@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PayGuard · Access terminal</title>
+<meta name="theme-color" content="#050507">
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z' fill='%23ff1f3d'/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/cyber.css">
+<link rel="stylesheet" href="/login.css">
+</head>
+<body class="cyber auth">
+<canvas id="rain" class="rain" aria-hidden="true"></canvas>
+<div class="auth-glow" aria-hidden="true"></div>
+<div class="scanlines" aria-hidden="true"></div>
+
+<header class="auth-top">
+  <a class="logo" href="/" aria-label="PayGuard home">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z"/><path class="pulse" d="M9.5 16.5h3l2-4 3 8 2-4h3"/></svg>
+    <span>PAY<b>GUARD</b></span>
+  </a>
+  <a class="back" href="/app">Continue without an account →</a>
+</header>
+
+<main class="term-wrap">
+  <section class="term" id="term" aria-labelledby="term-title">
+    <div class="term-bar">
+      <span class="lights"><i></i><i></i><i></i></span>
+      <span class="term-path">payguard://secure/auth</span>
+      <span class="lock" title="Encrypted connection">🔒 TLS</span>
+    </div>
+    <div class="dome" aria-hidden="true">
+    </div>
+
+    <div class="term-body">
+      <div class="term-head">
+        <div class="shield" aria-hidden="true">
+          <svg viewBox="0 0 64 64"><path d="M32 4 8 14v16c0 15 10.2 26.4 24 30 13.8-3.6 24-15 24-30V14z"/><path class="k" d="M24 30v-5a8 8 0 0 1 16 0v5M21 30h22v15H21z"/></svg>
+        </div>
+        <p class="sec-proto" aria-hidden="true">SEC_PROTOCOL · v2</p>
+        <h1 id="term-title" class="term-title" data-text="AUTHENTICATION TERMINAL">AUTHENTICATION TERMINAL</h1>
+        <p class="term-sub">OPERATOR IDENTIFICATION REQUIRED</p>
+        <p class="term-log" id="term-log" aria-hidden="true"></p>
+      </div>
+
+      <!-- signed in already -->
+      <div class="pane" id="pane-signed" hidden>
+        <p class="who-line">Signed in as <b id="signed-name"></b><br><small id="signed-email"></small></p>
+        <div class="row-btns">
+          <a class="btn-red big" href="/app"><span>Enter PayGuard</span></a>
+          <a class="btn-ghost big" href="/account">My account</a>
+        </div>
+        <button class="linkish" type="button" id="signed-out">Not you? Sign out</button>
+      </div>
+
+      <div id="pane-forms">
+        <div class="tabs" role="tablist" aria-label="Sign in or create account">
+          <button role="tab" id="tab-login" aria-selected="true" aria-controls="f-login" data-mode="login">LOGIN</button>
+          <button role="tab" id="tab-register" aria-selected="false" aria-controls="f-register" data-mode="register">REGISTER</button>
+          <i class="tab-ink" aria-hidden="true"></i>
+        </div>
+
+        <!-- login -->
+        <form class="pane" id="f-login" data-mode="login" role="tabpanel" aria-labelledby="tab-login" novalidate>
+          <label class="field"><span>EMAIL</span>
+            <input name="email" type="email" autocomplete="username" inputmode="email" required placeholder="you@example.com" autocapitalize="none" spellcheck="false"></label>
+          <label class="field"><span>PASSWORD</span>
+            <div class="pw"><input name="password" type="password" autocomplete="current-password" required placeholder="••••••••••">
+              <button type="button" class="eye" aria-label="Show password">SHOW</button></div></label>
+          <p class="err" role="alert"></p>
+          <button class="btn-red big submit" type="submit"><span>Authenticate</span></button>
+          <div class="under">
+            <button class="linkish" type="button" data-go="forgot">Forgot password?</button>
+            <span class="stay">Stays signed in for 30 days</span>
+          </div>
+        </form>
+
+        <!-- register -->
+        <form class="pane" id="f-register" data-mode="register" role="tabpanel" aria-labelledby="tab-register" novalidate hidden>
+          <label class="field"><span>NAME</span>
+            <input name="name" autocomplete="name" required maxlength="60" placeholder="What should we call you?"></label>
+          <label class="field"><span>EMAIL</span>
+            <input name="email" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com" autocapitalize="none" spellcheck="false"></label>
+          <label class="field"><span>PASSWORD</span>
+            <div class="pw"><input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
+              <button type="button" class="eye" aria-label="Show password">SHOW</button></div></label>
+          <div class="strength" aria-hidden="true"><i></i><i></i><i></i><i></i><small></small></div>
+          <label class="field"><span>LANGUAGE FOR EMAILS</span>
+            <select name="lang"><option value="en">English</option><option value="hi">हिंदी</option><option value="kn">ಕನ್ನಡ</option></select></label>
+          <p class="err" role="alert"></p>
+          <button class="btn-red big submit" type="submit"><span>Create account</span></button>
+          <p class="fine">We email you when someone signs in to your account. We never sell or share your data, and every scanner still works without an account.</p>
+        </form>
+
+        <!-- forgot -->
+        <form class="pane" id="f-forgot" data-mode="forgot" novalidate hidden>
+          <p class="pane-note">Enter your email. If it has a PayGuard account we'll send a reset link that works for 1 hour.</p>
+          <label class="field"><span>EMAIL</span>
+            <input name="email" type="email" autocomplete="email" inputmode="email" required placeholder="you@example.com" autocapitalize="none" spellcheck="false"></label>
+          <p class="err" role="alert"></p>
+          <p class="ok" role="status"></p>
+          <button class="btn-red big submit" type="submit"><span>Send reset link</span></button>
+          <div class="under"><button class="linkish" type="button" data-go="login">← Back to login</button></div>
+        </form>
+
+        <!-- reset -->
+        <form class="pane" id="f-reset" data-mode="reset" novalidate hidden>
+          <p class="pane-note">Choose a new password. This signs you out on every other device.</p>
+          <label class="field"><span>NEW PASSWORD</span>
+            <div class="pw"><input name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters">
+              <button type="button" class="eye" aria-label="Show password">SHOW</button></div></label>
+          <div class="strength" aria-hidden="true"><i></i><i></i><i></i><i></i><small></small></div>
+          <label class="field"><span>REPEAT</span>
+            <input name="password2" type="password" autocomplete="new-password" required placeholder="Same again"></label>
+          <p class="err" role="alert"></p>
+          <button class="btn-red big submit" type="submit"><span>Set new password</span></button>
+        </form>
+      </div>
+
+      <div class="granted" id="granted" aria-live="polite" hidden>
+        <div class="granted-ring"><svg viewBox="0 0 80 80"><circle cx="40" cy="40" r="34"/><path d="M26 41l9 9 19-20"/></svg></div>
+        <p class="granted-text" data-text="ACCESS GRANTED">ACCESS GRANTED</p>
+        <small id="granted-sub"></small>
+      </div>
+    </div>
+  </section>
+  <p class="foot-note">Protected by rate limits, httpOnly session cookies and scrypt password hashing. Lost money to a scam? Call <a href="tel:1930">1930</a>.</p>
+</main>
+
+<div class="cy-toast" id="cy-toast" role="status"></div>
+<script src="/pgauth.js"></script>
+<script src="/login.js"></script>
+</body>
+</html>

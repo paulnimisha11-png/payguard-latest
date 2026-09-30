@@ -32,7 +32,7 @@ Docker: `docker build -t apk-xray . && docker run -p 8000:8000 -v apkx:/data apk
 
 Deploy for free on Render / Railway / Fly.io: point them at this folder; the Dockerfile respects `$PORT`. It is a single service (API + website), so there's no separate frontend deployment.
 
-Tests: `python -m pytest -q tests` (39 tests: APK, QR, screenshot, complaints, Android endpoints). CI: `.github/workflows/backend.yml`.
+Tests: `python -m pytest -q tests` (120+ tests: APK, QR, screenshot, messages, complaints, trends, family, accounts). Each run uses its own temporary database. CI: `.github/workflows/backend.yml`.
 
 Deploy: `render.yaml` (Render → New → Blueprint), or any Docker host.
 
@@ -48,6 +48,35 @@ Deploy: `render.yaml` (Render → New → Blueprint), or any Docker host.
 | `APKXRAY_PUBLIC_MIN` | independent reports needed before something is listed on /trends (default 3) |
 | `APKXRAY_VOTE_SALT` | salt for hashing reporter ids and networks — set a long random value in production |
 | `APKXRAY_VAPID_PRIVATE` / `APKXRAY_VAPID_SUB` | Web Push key (PEM; auto-generated into `data/vapid_private.pem` if unset) and contact (`mailto:you@…`) |
+
+## Website, sign-in and accounts
+- `/` is the landing page (scroll story with an animated hooded figure, live numbers from `/api/trends`). The scanner is at `/app`;
+  old links such as `/?check=…`, `/?share_text=…` and `/?source=pwa` still open the scanner.
+- `/login` is the sign-in / register terminal, `/account` the account page. **Every scanner works without an account.**
+- Signed-in users get: their check history (verdicts only, scammer IDs masked; never messages, photos or files),
+  an email on every new sign-in with a one-click "wasn't me" reset link, a list of signed-in devices they can sign out,
+  password change / reset, and account deletion.
+- Security: passwords hashed with scrypt; sessions are random 256-bit tokens in an `HttpOnly; Secure; SameSite=Lax`
+  cookie and only their SHA-256 is stored; 30-day sliding sign-in; CSRF blocked (JSON-only + Origin check);
+  brute-force limits stored in the database (6 wrong passwords per account / 30 per network per 15 min, 10 sign-ups per network per hour);
+  the same error for "no such account" and "wrong password"; one-time links are stored hashed and expire.
+
+### Accounts: environment variables
+Without these the site still works: accounts are stored in the local SQLite file and emails are printed to the server log.
+| Variable | Effect |
+|---|---|
+| `DATABASE_URL` | Postgres for accounts, e.g. Supabase's **transaction pooler** string (`postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres`). Needed on Render, whose disk is wiped on every deploy. |
+| `BREVO_API_KEY` or `RESEND_API_KEY` | Send emails through Brevo or Resend's HTTP API (Render's free plan blocks SMTP) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | Or send through SMTP (e.g. a Gmail app password) when running locally |
+| `MAIL_FROM` / `MAIL_FROM_NAME` | Sender address (must be verified with Brevo/Resend) and name |
+| `PUBLIC_URL` | Site address used in email links (defaults to the address the request came to) |
+
+Set-up on Render (about 10 minutes):
+1. **Supabase** (free): create a project → *Connect* → copy the *Transaction pooler* URI, put your database password in it → Render → Environment → `DATABASE_URL`. Tables are created automatically on first start.
+2. **Brevo** (free, 300 emails/day): *Senders & IP* → add and verify your sender email → *SMTP & API* → create an API key → Render → `BREVO_API_KEY`, `MAIL_FROM`.
+3. `PUBLIC_URL` = `https://<your-app>.onrender.com`. Redeploy, then open `/api/health`: it should show `"accounts_db": "postgres"`, `"accounts_db_ok": true`, `"email": "brevo"`.
+
+Note: scan reports, community reports, trends and family links still use the local SQLite file, so on Render's free plan they reset when the service restarts.
 
 ## Fake payment screenshot detector
 Third tab on the website (and in the Android app). Upload the "I've paid" screenshot someone showed you:
@@ -158,9 +187,16 @@ app/message/analyzer.py  Scam message checker (scripts, actions, pressure, entit
 app/trends.py            Trends aggregation, public-listing rules, masking, lookup
 app/family/              Family guardian mode (devices, codes, links, alerts) + push.py (Web Push, no extra deps)
 scripts/seed_demo.py     Labelled demo data for the trends page
+app/auth/                Accounts: db.py (SQLite or Postgres), passwords.py (scrypt), service.py, api.py, mailer.py, emails.py (EN/HI/KN)
 static/                  Web app (vanilla JS, mobile-first, EN/हिंदी/ಕನ್ನಡ, read-aloud); trends.html, family.html, admin.html
+static/landing.*         Landing page (/): hooded-figure scroll story, warp canvas, live counters
+static/login.*, account.*, pgauth.js   Sign-in terminal, account page, shared account helpers + user menu
+static/cyber.css, theme.css            Black/red/green/blue theme (theme.css restyles the scanner pages without touching their logic)
 tests/  samples/
 ```
+
+## Hackathon: prior work vs. work done during the event
+See [HACKATHON.md](HACKATHON.md). Git tag `pre-hackathon` marks the code that existed before the final hackathon.
 
 ## License and credits
 PayGuard is open source under the [MIT License](LICENSE). Third-party libraries, programs, fonts and the three

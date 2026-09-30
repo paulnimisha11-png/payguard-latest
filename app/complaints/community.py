@@ -4,6 +4,7 @@ cached scan reports are never modified."""
 from __future__ import annotations
 
 from .. import store
+from ..analyzer import mutation
 from ..analyzer.rules import SEVERITY_ORDER, T, VERDICTS
 from ..qr.analyzer import QR_VERDICTS
 from ..screenshot.analyzer import SHOT_VERDICTS
@@ -58,6 +59,33 @@ def community_counts(rep: dict) -> dict:
 
 
 def apply_reports(rep: dict) -> dict:
+    """Community reports, then scam-mutation matches (a look-alike of a reported UPI ID, a repackaged copy of a
+    dangerous app). Both are added at response time only."""
+    rep = _apply_community(rep)
+    mutation.record(rep)  # before its own mutation finding, so ratings never chain from one near-match to the next
+    rep["findings"] = [x for x in rep["findings"] if x["id"] not in ("UPI_MUTATION", "APK_REPACKAGED")]
+    for f in mutation.findings(rep):
+        _add_finding(rep, f)
+    return rep
+
+
+def _add_finding(rep: dict, f: dict) -> None:
+    """Add a finding and raise the verdict by its points (a critical one lifts the score to at least danger-ish)."""
+    rep["findings"] = sorted([f] + [x for x in rep["findings"] if x["id"] != f["id"]],
+                             key=lambda x: (SEVERITY_ORDER[x["severity"]], -x["points"]))
+    if not f["points"]:
+        return
+    table, floor = {"qr": (QR_VERDICTS, 70), "shot": (SHOT_VERDICTS, 70), "msg": (MSG_VERDICTS, 70)}.get(rep.get("kind"), (VERDICTS, 45))
+    score = min(100, rep["verdict"]["score"] + f["points"])
+    if f["severity"] == "critical":
+        score = max(score, floor)
+    for threshold, level, headline, advice in table:
+        if score >= threshold:
+            break
+    rep["verdict"] = {"score": score, "level": level, "headline": headline, "advice": advice}
+
+
+def _apply_community(rep: dict) -> dict:
     cc = community_counts(rep)
     rep.setdefault("community", {}).update({k: cc[k] for k in ("reports", "complaints", "got_me", "fake", "disputes")})
     rep["community"]["can_report"] = bool(scan_indicators(rep))
@@ -82,16 +110,5 @@ def apply_reports(rep: dict) -> dict:
         "evidence": [f"{label}: {value}", f"one-tap reports: {cc['got_me'] + cc['fake']} ({cc['got_me']} lost money)", f"filed complaints: {cc['complaints']}"]
                     + ([f"marked genuine by: {cc['disputes']}"] if cc["disputes"] else []),
     }
-    rep["findings"] = sorted([f] + [x for x in rep["findings"] if x["id"] != "REPORTED_BY_USERS"],
-                             key=lambda x: (SEVERITY_ORDER[x["severity"]], -x["points"]))
-    table, floor = {"qr": (QR_VERDICTS, 70), "shot": (SHOT_VERDICTS, 70), "msg": (MSG_VERDICTS, 70)}.get(rep.get("kind"), (VERDICTS, 45))
-    if pts == 0:
-        return rep
-    score = min(100, rep["verdict"]["score"] + pts)
-    if sev == "critical":
-        score = max(score, floor)
-    for threshold, level, headline, advice in table:
-        if score >= threshold:
-            break
-    rep["verdict"] = {"score": score, "level": level, "headline": headline, "advice": advice}
+    _add_finding(rep, f)
     return rep

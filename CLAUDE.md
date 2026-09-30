@@ -38,6 +38,10 @@ Web app + Android app with three scanners, all giving a risk score + plain-langu
 - Licensing: MIT (`LICENSE`); credit every new dependency/asset in `THIRD_PARTY_NOTICES.md`. Git tag `pre-hackathon` marks what existed before the final hackathon.
 - Android release signing: private key via GitHub secrets (ANDROID_KEYSTORE_*), demo key only as fallback.
 
+- Accounts: `app/auth/` (db.py picks SQLite via store or Postgres via `DATABASE_URL`; service.py has all logic; api.py routes; mailer.py Brevo/Resend/SMTP/console; emails.py EN/HI/KN). Signed-in checks are saved by `_after_check` via `auth.record_check` (verdict + masked label only). Never store raw messages/images. State-changing auth endpoints must call `_same_site`. `tests/test_auth.py` runs on SQLite, and on Postgres when `DATABASE_URL` is set.
+- Pages: `/` landing (`static/landing.*`, only when the query has no app params, see `APP_QUERY` in main.py), `/app` scanner (index.html), `/login`, `/account`. Theme: `cyber.css` (tokens/components) + `theme.css` (restyles style.css pages, load after it). `pgauth.js` adds the user menu to any `[data-usermenu]`. Landing effects are vanilla JS + Lenis (MIT); no GSAP. Respect `prefers-reduced-motion`.
+- `HACKATHON.md` lists prior vs hackathon work; keep it updated.
+
 ## Conventions
 - Every new rule needs en/hi/kn text for title and detail, plus a test in tests/test_analyzer.py.
 - Rules must never crash a scan (evaluate() catches exceptions); keep benign samples at level "low".

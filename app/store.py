@@ -354,3 +354,40 @@ def moderation_status(kind: str, value: str) -> str | None:
     with _lock:
         row = _db.execute("SELECT status FROM moderation WHERE kind=? AND value=?", (kind, value.lower())).fetchone()
     return row[0] if row else None
+
+
+# ------------------------------------------------------------------ scam mutation matching (app/analyzer/mutation.py)
+# One row per scanned APK: its permission/behaviour fingerprint (never the file). Rows rated "danger" are what a
+# repackaged copy with a new name or version is matched against.
+with _lock:
+    _db.execute("""CREATE TABLE IF NOT EXISTS apk_fp(sha256 TEXT PRIMARY KEY, package TEXT, name TEXT, topo TEXT,
+                   features TEXT, level TEXT, created REAL)""")
+    _db.execute("CREATE INDEX IF NOT EXISTS idx_apk_fp_level ON apk_fp(level)")
+    _db.commit()
+
+
+def apk_fp_put(sha: str, package: str, name: str, topo: str, features: list[str], level: str) -> None:
+    with _lock:
+        _db.execute("INSERT OR REPLACE INTO apk_fp VALUES (?,?,?,?,?,?,?)",
+                    (sha.lower(), package or "", name or "", topo, json.dumps(sorted(features)), level, time.time()))
+        _db.commit()
+
+
+def apk_fp_flagged(limit: int = 5000) -> list[dict]:
+    """Fingerprints of APKs rated danger, or reported by users, newest first."""
+    with _lock:
+        rows = _db.execute("""SELECT sha256, package, name, topo, features FROM apk_fp
+                              WHERE level='danger'
+                                 OR sha256 IN (SELECT value FROM indicators WHERE kind='apk_sha256')
+                                 OR sha256 IN (SELECT value FROM votes WHERE kind='apk_sha256' AND reason<>'not_scam')
+                              ORDER BY created DESC LIMIT ?""", (limit,)).fetchall()
+    return [{"sha256": s, "package": p, "name": n, "topo": t, "features": json.loads(f)} for s, p, n, t, f in rows]
+
+
+def reported_ids(kind: str, limit: int = 20000) -> list[str]:
+    """Every identifier of this kind that someone reported as a scam (complaint or one-tap report)."""
+    with _lock:
+        rows = _db.execute("""SELECT value FROM indicators WHERE kind=?
+                              UNION SELECT value FROM votes WHERE kind=? AND reason<>'not_scam' LIMIT ?""",
+                           (kind, kind, limit)).fetchall()
+    return [r[0] for r in rows]

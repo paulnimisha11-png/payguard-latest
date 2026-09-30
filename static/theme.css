@@ -1,0 +1,140 @@
+/* PayGuard in-app theme ("cyber"): loaded after style.css on the scanner, radar, family and admin pages.
+   Re-points the existing tokens at the black / red / green / blue palette and adds glow, glass and motion.
+   Kept separate so the scanner logic and markup stay untouched. */
+:root, :root:not([data-theme="light"]) {
+  --bg: #050507; --surface: #0e0f15; --ink: #eef0f6; --dim: #8f93a8; --line: #1f212b;
+  --brand: #ff1f3d; --brand-ink: #ffffff; --brand-soft: #2a0b12;
+  --crit: #ff3b55; --crit-soft: #2c0b12; --high: #ff7a3d; --high-soft: #2c1407;
+  --med: #ffb020; --med-soft: #2a1e06; --low: #19e68c; --low-soft: #062a1a; --info: #6fb2ff;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 20px 50px -25px rgba(0,0,0,.9);
+  color-scheme: dark;
+}
+body.cyber { background: transparent; }
+body.cyber main, body.cyber footer { position: relative; z-index: 1; }
+a { color: var(--c-blue2); }
+
+/* header */
+.cyber .top { position: sticky; top: 0; z-index: 30; max-width: none; margin: 0; padding: 12px max(16px, calc((100vw - 1080px) / 2));
+  background: rgba(5, 5, 7, .7); backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-bottom: 1px solid rgba(255, 255, 255, .06); }
+.cyber .top::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--c-red), var(--c-blue), transparent); opacity: .5; background-size: 200% 100%; animation: topline 6s linear infinite; }
+@keyframes topline { to { background-position: -200% 0; } }
+.cyber .brand { font: 900 1rem var(--f-display); letter-spacing: .12em; text-transform: uppercase; color: #fff; }
+.cyber .brand svg { color: var(--c-red); filter: drop-shadow(0 0 8px var(--c-red-glow)); }
+.cyber .brand span b { color: var(--c-red); font-weight: 900; }
+.cyber .topnav a { color: var(--c-dim); font-weight: 500; }
+.cyber .topnav a:hover, .cyber .topnav a.on { background: rgba(255, 31, 61, .1); color: #fff; }
+.cyber .lang { background: rgba(255, 255, 255, .03); border-color: rgba(255, 255, 255, .08); }
+.cyber .lang button.on { background: var(--c-red); color: #fff; box-shadow: 0 0 14px -2px var(--c-red-glow); }
+.cyber .umenu > button .uname { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cyber .signin-btn { padding: 8px 14px; font-size: .74rem; border-radius: 999px; }
+@media (max-width: 640px) { .cyber .umenu > button .uname { display: none; } .cyber .umenu > button { padding: 4px; } }
+
+/* hero */
+.cyber .eyebrow { display: inline-flex; align-items: center; gap: 8px; font: 600 .72rem var(--f-mono); letter-spacing: .2em; color: var(--c-red2); }
+.cyber .eyebrow::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--c-red); box-shadow: 0 0 10px var(--c-red); animation: dotpulse 1.6s infinite; }
+.cyber h1 { font-family: var(--f-display), var(--font); font-weight: 800; letter-spacing: -.005em; }
+html[lang="hi"] .cyber h1, html[lang="kn"] .cyber h1, html[lang="ta"] .cyber h1, html[lang="te"] .cyber h1, html[lang="mr"] .cyber h1, html[lang="bn"] .cyber h1 { font-family: var(--font); }
+.cyber h1 span { background: linear-gradient(90deg, var(--c-red), #ff6b81 40%, var(--c-red)); -webkit-background-clip: text; background-clip: text; color: transparent;
+  background-size: 200% 100%; animation: shine 5s linear infinite; filter: drop-shadow(0 0 18px rgba(255, 31, 61, .35)); }
+@keyframes shine { to { background-position: -200% 0; } }
+.cyber .lead, .cyber .privacy { color: var(--c-dim); }
+
+/* mode switcher: each scanner has its own accent */
+.cyber .mode { position: relative; background: rgba(14, 15, 21, .8); border-color: rgba(255, 255, 255, .08); color: var(--c-dim); transition: .25s var(--ease-out); overflow: hidden; }
+.cyber .mode:hover { color: #fff; border-color: rgba(255, 255, 255, .18); transform: translateY(-1px); }
+.cyber .mode[data-mode="msg"], .cyber .mode[data-mode="apk"] { --ac: var(--c-red); --acs: rgba(255, 31, 61, .1); }
+.cyber .mode[data-mode="qr"] { --ac: var(--c-blue2); --acs: rgba(47, 139, 255, .1); }
+.cyber .mode[data-mode="shot"] { --ac: var(--c-green); --acs: rgba(25, 230, 140, .08); }
+.cyber .mode.on { color: #fff; border-color: var(--ac); background: var(--acs); box-shadow: inset 0 0 0 1px var(--ac), 0 0 26px -8px var(--ac); }
+.cyber .mode.on::after { content: ""; position: absolute; left: 20%; right: 20%; bottom: 0; height: 2px; background: var(--ac); box-shadow: 0 0 10px var(--ac); }
+
+/* upload area, forms */
+.cyber .drop { background: rgba(12, 13, 19, .75); border: 1px dashed rgba(255, 31, 61, .45); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); position: relative; }
+.cyber .drop::before { content: ""; position: absolute; inset: -1px; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s;
+  box-shadow: 0 0 0 1px var(--c-red), 0 0 40px -6px var(--c-red-glow); }
+.cyber .drop:hover, .cyber .drop:focus-visible, .cyber .drop.over { background: rgba(255, 31, 61, .06); border-color: var(--c-red); }
+.cyber .drop:hover::before, .cyber .drop.over::before { opacity: 1; }
+.cyber .drop-icon { color: var(--c-red); filter: drop-shadow(0 0 10px var(--c-red-glow)); animation: floaty 3.5s ease-in-out infinite; }
+@keyframes floaty { 50% { transform: translateY(-4px); } }
+.cyber .msgform textarea, .cyber .qrform input, .cyber .f input, .cyber .f select, .cyber .f textarea, .cyber input.field, .cyber select.field,
+.cyber .expect textarea, .cyber .expect input, .cyber .code-input, .cyber .linkbox input {
+  background: rgba(0, 0, 0, .5); border: 1px solid rgba(255, 255, 255, .1); color: #fff; transition: border-color .2s, box-shadow .2s; }
+.cyber .msgform textarea:focus, .cyber .qrform input:focus, .cyber .f input:focus, .cyber .f select:focus, .cyber .f textarea:focus,
+.cyber input.field:focus, .cyber select.field:focus, .cyber .expect textarea:focus, .cyber .expect input:focus, .cyber .code-input:focus {
+  outline: none; border-color: var(--c-red); box-shadow: 0 0 0 3px rgba(255, 31, 61, .15), 0 0 22px -6px var(--c-red-glow); }
+
+/* buttons */
+.cyber .btn { background: linear-gradient(180deg, #ff2e4a, #d80f2c); color: #fff; box-shadow: 0 8px 24px -10px var(--c-red-glow), inset 0 1px 0 rgba(255, 255, 255, .22);
+  transition: transform .2s var(--ease-out), box-shadow .2s, filter .2s; }
+.cyber .btn:hover { transform: translateY(-1px); box-shadow: 0 12px 30px -8px var(--c-red-glow), inset 0 1px 0 rgba(255, 255, 255, .25); }
+.cyber .btn:active { transform: scale(.97); }
+.cyber .btn.light { background: rgba(255, 255, 255, .92); color: #0b0b10; box-shadow: none; }
+.cyber .btn.ghost { background: rgba(255, 255, 255, .08); color: #fff; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16); }
+.cyber .btn.vote.fake { background: rgba(255, 122, 61, .1); color: var(--high); }
+.cyber .btn.install { background: rgba(47, 139, 255, .12); color: var(--c-blue2); box-shadow: inset 0 0 0 1px rgba(47, 139, 255, .45); }
+.cyber .btn.report { background: #fff; color: #b3122f; }
+
+/* cards and panels */
+.cyber .card, .cyber .how > div, .cyber .kpi, .cyber .finding, .cyber .alert, .cyber .payapp, .cyber .android {
+  background: rgba(13, 14, 20, .78); border-color: rgba(255, 255, 255, .07); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.cyber .card { transition: border-color .3s, box-shadow .3s; }
+.cyber .card:hover { border-color: rgba(255, 255, 255, .12); }
+.cyber .how b { background: rgba(255, 31, 61, .12); color: var(--c-red); box-shadow: 0 0 14px -4px var(--c-red-glow); font-family: var(--f-mono); }
+.cyber .how > div:nth-child(2) b { background: rgba(47, 139, 255, .12); color: var(--c-blue2); box-shadow: 0 0 14px -4px var(--c-blue-glow); }
+.cyber .how > div:nth-child(3) b { background: rgba(25, 230, 140, .1); color: var(--c-green); box-shadow: 0 0 14px -4px var(--c-green-glow); }
+.cyber .kpi .v { font-family: var(--f-display); font-weight: 800; }
+.cyber .kpi:nth-child(2) .v { color: var(--c-red); } .cyber .kpi:nth-child(3) .v { color: var(--c-blue2); } .cyber .kpi:nth-child(4) .v { color: var(--c-green); }
+.cyber .tabs button { background: rgba(255, 255, 255, .03); border-color: rgba(255, 255, 255, .08); }
+.cyber .tabs button.on { background: var(--c-red); color: #fff; border-color: var(--c-red); box-shadow: 0 0 16px -4px var(--c-red-glow); }
+.cyber .chip { background: rgba(255, 255, 255, .04); }
+.cyber .banner.info { background: rgba(47, 139, 255, .1); border: 1px solid rgba(47, 139, 255, .3); }
+.cyber .android { background: rgba(10, 11, 16, .85); }
+.cyber footer { border-top-color: rgba(255, 255, 255, .06); color: var(--c-dim); }
+
+/* verdicts: dark glass tinted by risk, with a glowing edge */
+.cyber .verdict { position: relative; overflow: hidden; border: 1px solid; backdrop-filter: blur(10px); animation: verdictIn .7s var(--ease-out); }
+@keyframes verdictIn { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.cyber .verdict::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, .03) 0 1px, transparent 1px 4px); }
+.cyber .verdict > * { position: relative; }
+.cyber .verdict.danger { background: linear-gradient(135deg, rgba(160, 10, 35, .92), rgba(60, 4, 14, .95)); border-color: var(--c-red); box-shadow: 0 0 60px -16px var(--c-red-glow); }
+.cyber .verdict.suspicious { background: linear-gradient(135deg, rgba(170, 60, 10, .9), rgba(60, 20, 4, .95)); border-color: var(--high); box-shadow: 0 0 50px -18px rgba(255, 122, 61, .5); }
+.cyber .verdict.caution { background: linear-gradient(135deg, rgba(150, 100, 10, .88), rgba(55, 36, 4, .95)); border-color: var(--med); box-shadow: 0 0 50px -18px rgba(255, 176, 32, .45); }
+.cyber .verdict.low { background: linear-gradient(135deg, rgba(8, 110, 66, .9), rgba(3, 40, 24, .95)); border-color: var(--c-green); box-shadow: 0 0 50px -18px var(--c-green-glow); }
+.cyber .g-fg { filter: drop-shadow(0 0 6px rgba(255, 255, 255, .6)); }
+.cyber .g-num { font-family: var(--f-display); }
+.cyber .scanner { border-color: var(--c-red); box-shadow: 0 0 30px -6px var(--c-red-glow); }
+.cyber .bar i { background: linear-gradient(90deg, var(--c-blue), var(--c-red)); box-shadow: 0 0 10px var(--c-red-glow); }
+.cyber .finding { border-left-width: 3px; }
+.cyber .finding.critical { box-shadow: -8px 0 24px -16px var(--c-red); }
+.cyber .finding.low { box-shadow: -8px 0 24px -16px var(--c-green); }
+
+/* entrance */
+.cyber main > section > *, .cyber .page-head, .cyber .kpis, .cyber .grid { animation: rise .7s var(--ease-out) both; }
+.cyber main > section > *:nth-child(2) { animation-delay: .06s; } .cyber main > section > *:nth-child(3) { animation-delay: .12s; }
+.cyber main > section > *:nth-child(4) { animation-delay: .18s; } .cyber main > section > *:nth-child(5) { animation-delay: .24s; }
+@keyframes rise { from { opacity: 0; transform: translateY(16px); } }
+
+/* signed-in strip on the scanner */
+.acct-strip { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; max-width: 620px; margin: 12px auto 0;
+  padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(25, 230, 140, .25); background: rgba(25, 230, 140, .05);
+  font: 500 .8rem var(--f-mono); color: var(--c-dim); }
+.acct-strip b { color: var(--c-green); }
+.acct-strip a { color: var(--c-blue2); text-decoration: none; }
+.acct-strip.anon { border-color: rgba(47, 139, 255, .25); background: rgba(47, 139, 255, .05); }
+
+/* phone header: brand + account on top, sections + languages (scrollable) below */
+@media (max-width: 640px) {
+  .cyber .top { display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 8px; row-gap: 8px; padding: 10px 14px; }
+  .cyber .top-r { display: contents; }
+  .cyber .brand { grid-row: 1; grid-column: 1; }
+  .cyber .btn.install { grid-row: 1; grid-column: 2; justify-self: end; }
+  .cyber [data-usermenu] { grid-row: 1; grid-column: 3; justify-self: end; }
+  .cyber .topnav { grid-row: 2; grid-column: 1; }
+  .cyber .lang { grid-row: 2; grid-column: 2 / 4; min-width: 0; justify-self: stretch; }
+  .cyber .topnav a { padding: 6px 7px; font-size: .84rem; }
+  .cyber .acct-strip { border-radius: 14px; }
+  .cyber .mode { padding: 10px 4px; font-size: .78rem; overflow-wrap: anywhere; }
+}

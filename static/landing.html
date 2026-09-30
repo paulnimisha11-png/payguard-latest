@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PayGuard — They're already in your phone</title>
+<meta name="description" content="PayGuard catches scam messages, fake UPI QR codes, edited payment screenshots and banking-trojan apps before they catch you. Free, in English, हिंदी and ಕನ್ನಡ.">
+<meta name="theme-color" content="#050507">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z' fill='%23ff1f3d'/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/cyber.css">
+<link rel="stylesheet" href="/landing.css">
+</head>
+<body class="landing">
+
+<!-- boot sequence (skippable; shown once per session) -->
+<div id="boot" class="boot" aria-hidden="true">
+  <div class="boot-inner">
+    <div class="boot-lines" id="boot-lines"></div>
+    <div class="boot-bar"><i></i></div>
+  </div>
+</div>
+
+<canvas id="warp" class="warp" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<div class="grid-floor" aria-hidden="true"></div>
+<div class="grain" aria-hidden="true"></div>
+<div class="spot" aria-hidden="true"></div>
+
+<header class="lnav" id="lnav">
+  <a class="logo" href="/" aria-label="PayGuard home">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z"/><path class="pulse" d="M9.5 16.5h3l2-4 3 8 2-4h3"/></svg>
+    <span>PAY<b>GUARD</b></span>
+  </a>
+  <nav class="lnav-links" aria-label="Sections">
+    <a href="#scan">How it works</a>
+    <a href="#arsenal">Features</a>
+    <a href="#family">Family</a>
+    <a href="/trends">Live radar</a>
+  </nav>
+  <div class="lnav-cta">
+    <a class="btn-ghost" id="nav-signin" href="/login">Sign in</a>
+    <a class="btn-red magnetic" href="/app"><span>Enter PayGuard</span></a>
+  </div>
+</header>
+
+<main>
+  <!-- ========== 1. HERO: the hooded figure ========== -->
+  <section class="scene hero" id="hero">
+    <div class="sticky">
+      <div class="hood-wrap" id="hood-wrap">
+        <svg class="hood" viewBox="0 0 600 720" aria-hidden="true">
+          <defs>
+            <radialGradient id="void" cx="50%" cy="45%" r="55%">
+              <stop offset="0" stop-color="#000"/><stop offset=".75" stop-color="#010102"/><stop offset="1" stop-color="#0b0b10"/>
+            </radialGradient>
+            <linearGradient id="cloth" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#1b1c24"/><stop offset=".55" stop-color="#101117"/><stop offset="1" stop-color="#07070a"/>
+            </linearGradient>
+            <linearGradient id="clothSide" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".3" stop-color="#000" stop-opacity="0"/>
+              <stop offset=".7" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/>
+            </linearGradient>
+            <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="var(--rim-a)"/><stop offset="1" stop-color="var(--rim-b)"/>
+            </linearGradient>
+            <linearGradient id="lid" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#15161d"/><stop offset="1" stop-color="#050506"/>
+            </linearGradient>
+            <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="softglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+          </defs>
+          <!-- aura behind the head -->
+          <ellipse class="aura" cx="300" cy="270" rx="210" ry="230" filter="url(#softglow)"/>
+          <!-- shoulders / torso -->
+          <path class="torso" d="M20 720 C 34 612, 86 540, 168 506 C 214 487, 252 478, 300 478 C 348 478, 386 487, 432 506 C 514 540, 566 612, 580 720 Z" fill="url(#cloth)"/>
+          <path d="M20 720 C 34 612, 86 540, 168 506 C 214 487, 252 478, 300 478 C 348 478, 386 487, 432 506 C 514 540, 566 612, 580 720 Z" fill="url(#clothSide)"/>
+          <!-- hood -->
+          <path class="hood-shell" d="M118 548 C 114 432, 138 330, 184 244 C 220 174, 262 110, 300 90 C 338 110, 380 174, 416 244 C 462 330, 486 432, 482 548 C 430 520, 370 505, 300 505 C 230 505, 170 520, 118 548 Z" fill="url(#cloth)"/>
+          <path d="M118 548 C 114 432, 138 330, 184 244 C 220 174, 262 110, 300 90 C 338 110, 380 174, 416 244 C 462 330, 486 432, 482 548 C 430 520, 370 505, 300 505 C 230 505, 170 520, 118 548 Z" fill="url(#clothSide)"/>
+          <!-- fabric folds -->
+          <g class="folds" fill="none" stroke="#2a2b36" stroke-width="2" stroke-linecap="round" opacity=".7">
+            <path d="M190 262 C 176 320, 170 390, 176 470"/><path d="M410 262 C 424 320, 430 390, 424 470"/>
+            <path d="M232 160 C 214 190, 200 222, 194 250"/><path d="M368 160 C 386 190, 400 222, 406 250"/>
+            <path d="M150 520 C 190 500, 236 492, 262 492"/><path d="M450 520 C 410 500, 364 492, 338 492"/>
+          </g>
+          <!-- inner rim of the hood opening -->
+          <path d="M300 160 C 240 164, 196 226, 192 300 C 188 382, 232 448, 300 462 C 368 448, 412 382, 408 300 C 404 226, 360 164, 300 160 Z" fill="#191a22"/>
+          <!-- the face: nothing -->
+          <path class="face" d="M300 178 C 250 181, 212 236, 208 302 C 205 372, 242 428, 300 442 C 358 428, 395 372, 392 302 C 388 236, 350 181, 300 178 Z" fill="url(#void)"/>
+          <!-- eyes, only when he notices you -->
+          <g class="eyes" filter="url(#glow)">
+            <path d="M252 306 Q 268 298 284 306 Q 268 311 252 306 Z"/><path d="M316 306 Q 332 298 348 306 Q 332 311 316 306 Z"/>
+          </g>
+          <!-- drawstrings -->
+          <g fill="none" stroke="#6d7080" stroke-width="3" stroke-linecap="round" opacity=".8">
+            <path d="M276 452 C 274 480, 271 508, 269 548"/><path d="M324 452 C 326 480, 329 508, 331 548"/>
+          </g>
+          <rect x="265" y="546" width="8" height="16" rx="3" fill="#9ca0b0"/><rect x="327" y="546" width="8" height="16" rx="3" fill="#9ca0b0"/>
+          <!-- rim light -->
+          <g class="rimlight" fill="none" stroke="url(#rim)" stroke-width="3" filter="url(#glow)">
+            <path d="M118 548 C 114 432, 138 330, 184 244 C 220 174, 262 110, 300 90 C 338 110, 380 174, 416 244 C 462 330, 486 432, 482 548"/>
+            <path d="M20 720 C 34 612, 86 540, 168 506"/><path d="M580 720 C 566 612, 514 540, 432 506"/>
+          </g>
+          <!-- laptop, lid facing us -->
+          <path class="laptop" d="M140 578 L460 578 L482 720 L118 720 Z" fill="url(#lid)"/>
+          <path d="M140 578 L460 578" stroke="url(#rim)" stroke-width="2" opacity=".8"/>
+          <g class="lid-logo" transform="translate(300 648)" filter="url(#glow)">
+            <path d="M0 -26 -20 -18v13c0 12.5 8.5 22 20 25 11.5-3 20-12.5 20-25v-13z"/>
+          </g>
+        </svg>
+      </div>
+
+      <!-- floating intercepts: what reaches people's phones -->
+      <div class="intercepts" aria-hidden="true">
+        <div class="icpt i1" data-at=".12"><b>SMS · VM-ELECTR</b><span data-type>Dear Consumer, your electricity will be disconnected tonight at 9:30pm. Call officer 98xxxxxx10</span></div>
+        <div class="icpt i2" data-at=".22"><b>UPI REQUEST</b><span data-type>Scan this QR to RECEIVE ₹5,000 refund</span></div>
+        <div class="icpt i3" data-at=".32"><b>WHATSAPP · +91 7xxxx</b><span data-type>Courier_Delivery_Update.apk (2.1 MB)</span></div>
+        <div class="icpt i4" data-at=".42"><b>"PAYMENT DONE ✓"</b><span data-type>₹10,000 sent. Please deliver the phone now.</span></div>
+      </div>
+
+      <div class="hero-copy">
+        <div class="stage" data-stage="0">
+          <p class="kicker"><span class="dot"></span> THREAT FEED · LIVE</p>
+          <h1 class="decrypt big" data-text="THEY'RE ALREADY IN YOUR PHONE.">THEY'RE ALREADY IN YOUR PHONE.</h1>
+        </div>
+        <div class="stage" data-stage="1">
+          <p class="lead">A fake electricity bill. A “scan to receive money” QR. An edited payment screenshot. A banking trojan wearing a courier app's name. <em>Every one of them looks real.</em></p>
+        </div>
+        <div class="stage" data-stage="2">
+          <h2 class="decrypt big red" data-text="PAYGUARD SEES THEM FIRST.">PAYGUARD SEES THEM FIRST.</h2>
+          <div class="hero-cta">
+            <a class="btn-red magnetic big" href="/app"><span>Check something now</span></a>
+            <a class="btn-ghost big" href="/login?mode=register">Create free account</a>
+          </div>
+        </div>
+      </div>
+      <div class="scroll-cue" aria-hidden="true"><span>SCROLL</span><i></i></div>
+    </div>
+  </section>
+
+  <!-- ========== 2. LIVE COUNTERS (real data from /api/trends) ========== -->
+  <section class="live" id="live">
+    <div class="live-row">
+      <div class="stat"><span class="num" data-count="checks">0</span><span class="lbl">checks this week</span></div>
+      <div class="stat red"><span class="num" data-count="threats">0</span><span class="lbl">scams caught this week</span></div>
+      <div class="stat blue"><span class="num" data-count="reports">0</span><span class="lbl">reports from people</span></div>
+      <div class="stat green"><span class="num">₹0</span><span class="lbl">cost to use PayGuard</span></div>
+    </div>
+    <p class="live-note">Live numbers from this server. <a href="/trends">Open the scam radar →</a></p>
+  </section>
+
+  <!-- ========== 3. SCAN DEMO (scroll to run it) ========== -->
+  <section class="scene scan" id="scan">
+    <div class="sticky scan-sticky">
+      <div class="scan-copy">
+        <p class="kicker"><span class="dot"></span> WATCH IT WORK</p>
+        <h2 class="h2">Paste it. <span class="red">We take it apart.</span></h2>
+        <ol class="steps">
+          <li data-at=".08"><b>Reads the message</b> in English, हिंदी, Hinglish or ಕನ್ನಡ</li>
+          <li data-at=".3"><b>Spots the trap</b>: threats, deadlines, a personal number posing as an officer</li>
+          <li data-at=".55"><b>Checks every link, UPI ID and number</b> against scam patterns and reports from other people</li>
+          <li data-at=".78"><b>Tells you in plain words</b> what they want you to do, and what to do instead</li>
+        </ol>
+      </div>
+      <div class="phone" aria-label="Demo: a scam SMS being analysed">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="sms-head"><span class="av">VM</span><div><b>VM-ELECTR</b><small>Text message · now</small></div></div>
+          <div class="bubble">
+            Dear Consumer, your electricity power
+            <mark data-at=".34" class="hl-threat">will be disconnected</mark>
+            <mark data-at=".42" class="hl-urgent">tonight at 9:30pm</mark>
+            because your previous month bill was not updated. Please
+            <mark data-at=".50" class="hl-urgent">immediately</mark>
+            contact our electricity officer
+            <mark data-at=".6" class="hl-number">98xxxxxx10</mark>.
+          </div>
+          <div class="beam" aria-hidden="true"></div>
+          <div class="meter"><span>RISK</span><div class="meter-bar"><i></i></div><b class="meter-num">0</b></div>
+          <div class="verdict-stamp">SCAM<small>Electricity cut-off script · don't call, don't pay</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 4. ARSENAL (features) ========== -->
+  <section class="arsenal" id="arsenal">
+    <p class="kicker center"><span class="dot"></span> THE ARSENAL</p>
+    <h2 class="h2 center">Six ways they come for your money.<br><span class="red">Six ways we stop them.</span></h2>
+    <div class="cards">
+      <a class="card3d" href="/app?mode=msg" data-accent="red">
+        <div class="glyph">💬</div><h3>Scam message X-ray</h3>
+        <p>13 Indian scam scripts: electricity cut-off, KYC block, parcel held, “digital arrest”, part-time jobs and more.</p><span class="go">Check a message →</span></a>
+      <a class="card3d" href="/app?mode=qr" data-accent="blue">
+        <div class="glyph">🔳</div><h3>QR &amp; UPI shield</h3>
+        <p>Catches “scan to receive money” and fake bank links, then hands safe payments straight to GPay, PhonePe or Paytm.</p><span class="go">Scan a QR →</span></a>
+      <a class="card3d" href="/app?mode=shot" data-accent="green">
+        <div class="glyph">🧾</div><h3>Fake-payment forensics</h3>
+        <p>Pixel-level checks on payment screenshots: erased digits, pasted amounts, reused reference numbers.</p><span class="go">Check a screenshot →</span></a>
+      <a class="card3d" href="/app?mode=apk" data-accent="red">
+        <div class="glyph">📦</div><h3>APK X-Ray</h3>
+        <p>Opens the “courier app” without installing it and finds the SMS + Accessibility + overlay trojan pattern.</p><span class="go">Scan an app file →</span></a>
+      <a class="card3d" href="/family" data-accent="blue">
+        <div class="glyph">🛡️</div><h3>Family shield</h3>
+        <p>Link your parents' phones. If they meet a scam or try to pay a risky UPI ID, your phone buzzes.</p><span class="go">Protect family →</span></a>
+      <a class="card3d" href="/trends" data-accent="green">
+        <div class="glyph">📡</div><h3>Scam radar</h3>
+        <p>What's rising this week, and the UPI IDs and numbers people report. Protected against fake reports.</p><span class="go">Open radar →</span></a>
+    </div>
+  </section>
+
+  <!-- ========== 5. FAMILY ========== -->
+  <section class="fam" id="family">
+    <div class="fam-visual" aria-hidden="true">
+      <div class="mini-phone left"><span>PAPA</span><b class="alert-dot"></b><small>scanned a<br>“refund” QR</small></div>
+      <svg class="link-beam" viewBox="0 0 300 60"><path id="beam-path" d="M10 30 C 90 -10, 210 70, 290 30"/><circle r="5"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#beam-path"/></animateMotion></circle></svg>
+      <div class="mini-phone right"><span>YOU</span><b class="alert-dot on"></b><small>⚠ Papa is paying<br>a risky UPI ID</small></div>
+    </div>
+    <div class="fam-copy">
+      <p class="kicker"><span class="dot"></span> FAMILY SHIELD</p>
+      <h2 class="h2">They target your parents.<br><span class="blue">You get the alarm.</span></h2>
+      <p>Six-digit code, two phones, done. Alerts show the scam type and a masked ID, never their messages or photos. Either side can stop it any time.</p>
+      <a class="btn-ghost big" href="/family">Set up family shield</a>
+    </div>
+  </section>
+
+  <!-- ========== 6. FINAL CTA ========== -->
+  <section class="final" id="final">
+    <h2 class="glitch" data-text="DON'T GET HOOKED.">DON'T GET HOOKED.</h2>
+    <p>Free. No app store needed. Works on any phone in English, हिंदी and ಕನ್ನಡ.</p>
+    <div class="hero-cta center">
+      <a class="btn-red magnetic big" href="/app"><span>Enter PayGuard</span></a>
+      <a class="btn-ghost big" href="/login?mode=register">Create account</a>
+    </div>
+    <p class="helpline">Already lost money? Call <a href="tel:1930">1930</a> now and report at <a href="https://cybercrime.gov.in" rel="noopener">cybercrime.gov.in</a>. The first hour matters.</p>
+  </section>
+</main>
+
+<footer class="lfoot">
+  <span>PAYGUARD · built for Track 3, Cybersecurity &amp; Defense</span>
+  <span><a href="/app">Scanner</a> · <a href="/trends">Radar</a> · <a href="/family">Family</a> · <a href="https://github.com/paulnimisha11-png/payguard-latest" rel="noopener">Open source (MIT)</a></span>
+</footer>
+
+<script src="/vendor/lenis.min.js"></script>
+<script src="/landing.js"></script>
+</body>
+</html>

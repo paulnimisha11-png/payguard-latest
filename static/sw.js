@@ -1,7 +1,8 @@
 /* PayGuard service worker: makes the app installable and keeps the app shell available offline.
    Scans always go to the server (never cached), so results are always fresh. */
-const VERSION = "payguard-v4";
-const SHELL = ["/", "/trends", "/family", "/style.css", "/device.js", "/app.js", "/qr.js", "/shot.js", "/report.js", "/vote.js", "/pay.js",
+const VERSION = "payguard-v5";
+const SHELL = ["/", "/app", "/trends", "/family", "/style.css", "/cyber.css", "/theme.css", "/pgauth.js",
+               "/landing.css", "/landing.js", "/vendor/lenis.min.js", "/device.js", "/app.js", "/qr.js", "/shot.js", "/report.js", "/vote.js", "/pay.js",
                "/msg.js", "/pwa.js", "/trends.js", "/family.js",
                "/vendor/jsQR.js", "/icons/icon-192.png", "/icons/icon-512.png", "/manifest.webmanifest"];
 
@@ -20,8 +21,9 @@ self.addEventListener("fetch", (e) => {
   if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/download/")) return;   // live data only
   if (e.request.mode === "navigate") {
     // Pages: network first so updates show up, cached shell when offline (/r/…, /s/…, /c/… all use the same shell).
+    // "/" with no query is the landing page; everything else falls back to the scanner.
     e.respondWith(fetch(e.request).catch(() => caches.match(url.pathname.startsWith("/family") ? "/family"
-      : url.pathname.startsWith("/trends") ? "/trends" : "/")));
+      : url.pathname.startsWith("/trends") ? "/trends" : url.pathname === "/" && !url.search ? "/" : "/app")));
     return;
   }
   // Static files: cache first, refresh in the background.

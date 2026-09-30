@@ -40,7 +40,7 @@ from .qr.analyzer import analyze_payload, decode_qr_image
 from .complaints import builder as cb
 from .screenshot.analyzer import analyze_screenshot
 from .message import analyze_message
-from . import family, trends
+from . import auth, family, trends
 from .complaints.community import apply_reports
 from .complaints.pdf import render as render_pdf
 
@@ -124,9 +124,16 @@ async def _virustotal(sha256: str) -> dict | None:
 
 
 def _after_check(request: Request, rep: dict) -> dict:
-    """Every check: add community reports, count it for the trends page, alert family guardians."""
+    """Every check: add community reports, count it for the trends page, alert family guardians, and save it to the
+    signed-in user's history (kind, verdict and a masked identifier only; never message text or images)."""
     rep = apply_reports(rep)
     trends.record(rep)
+    cur = auth.current(request)
+    if cur:
+        try:
+            auth.record_check(cur[0]["id"], rep, family._target(rep))
+        except Exception:
+            pass
     did = family.authenticate(request.headers.get("x-pg-device"))
     if did:
         try:
@@ -521,7 +528,7 @@ async def health():
     from .screenshot.analyzer import HAS_OCR, OCR_ENGINE
     return {"ok": True, "engine": ENGINE_VERSION, "llm": bool(os.environ.get("ANTHROPIC_API_KEY")),
             "virustotal": bool(VT_KEY), "ocr": HAS_OCR, "ocr_engine": OCR_ENGINE, "android_apk": os.path.isfile(APK_PATH) or bool(APK_URL), "service": "payguard",
-            "push_recent": [f"{h}:{st}" for h, st in family.PUSH_LOG[-5:]], "tts": "espeak-ng" if ESPEAK else None}
+            "push_recent": [f"{h}:{st}" for h, st in family.PUSH_LOG[-5:]], "tts": "espeak-ng" if ESPEAK else None, **auth.health()}
 
 
 # ------------------------------------------------------------------ trends (public)
@@ -801,7 +808,8 @@ async def validation_err(_, exc: RequestValidationError):
 
 @app.exception_handler(HTTPException)
 async def http_err(_, exc: HTTPException):
-    return JSONResponse({"error": exc.detail}, status_code=exc.status_code)
+    body = exc.detail if isinstance(exc.detail, dict) else {"error": exc.detail}
+    return JSONResponse(body, status_code=exc.status_code, headers=getattr(exc, "headers", None))
 
 
 @app.get("/s/{sha256}")
@@ -812,6 +820,34 @@ async def screenshot_page(sha256: str):
 @app.get("/c/{ref}")
 async def complaint_page(ref: str):
     return FileResponse(os.path.join(STATIC, "index.html"))
+
+
+# ------------------------------------------------------------------ pages
+# "/" is the landing page. Old links that carry a check in the query string (/?check=…, /?share_text=… from the
+# Android app and the PWA share sheet, /?mode=qr&scan=1 home-screen shortcuts) still open the app directly.
+APP_QUERY = ("check", "share_text", "share_title", "share_url", "text", "mode", "scan", "report", "source")
+
+
+@app.get("/")
+async def landing(request: Request):
+    if any(k in request.query_params for k in APP_QUERY):
+        return FileResponse(os.path.join(STATIC, "index.html"))
+    return FileResponse(os.path.join(STATIC, "landing.html"))
+
+
+@app.get("/app")
+async def app_page():
+    return FileResponse(os.path.join(STATIC, "index.html"))
+
+
+@app.get("/login")
+async def login_page():
+    return FileResponse(os.path.join(STATIC, "login.html"))
+
+
+@app.get("/account")
+async def account_page():
+    return FileResponse(os.path.join(STATIC, "account.html"))
 
 
 @app.get("/trends")
@@ -829,4 +865,6 @@ async def report_page(sha256: str):
     return FileResponse(os.path.join(STATIC, "index.html"))
 
 
+auth.init(_client_ip)
+app.include_router(auth.router)
 app.mount("/", StaticFiles(directory=STATIC, html=True), name="static")

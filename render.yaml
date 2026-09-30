@@ -20,6 +20,20 @@ services:
         value: "1"
       - key: MKL_NUM_THREADS
         value: "1"
+      # ---- Accounts (sign in, login-alert emails). Set these in the Render dashboard; they are secrets. ----
+      # Render's free disk is wiped on every deploy/restart, so accounts must live in a hosted Postgres
+      # (free: Supabase → Project settings → Database → Connection string → "Transaction pooler", port 6543).
+      - key: DATABASE_URL
+        sync: false
+      # Email: Render blocks SMTP on the free plan, so use an HTTP email API. Brevo's free plan sends 300/day.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: MAIL_FROM            # a sender address you verified in Brevo (Senders & IP → Senders)
+        sync: false
+      - key: MAIL_FROM_NAME
+        value: "PayGuard"
+      - key: PUBLIC_URL           # used in email links, e.g. https://payguard-latest.onrender.com
+        sync: false
       # After the Android build runs on GitHub, point the website's "Download the app" button at it:
       # - key: APKXRAY_APP_APK_URL
       #   value: https://github.com/<you>/<repo>/releases/download/android-latest/PayGuard.apk

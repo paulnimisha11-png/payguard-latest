@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>My account · PayGuard</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#050507">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z' fill='%23ff1f3d'/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/cyber.css">
+<link rel="stylesheet" href="/theme.css">
+<link rel="stylesheet" href="/account.css">
+</head>
+<body class="cyber">
+<div class="cy-bg" aria-hidden="true"><i></i><b></b></div>
+<header class="top">
+  <a class="brand" href="/">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2 4 7v8c0 7.5 5.1 13.2 12 15 6.9-1.8 12-7.5 12-15V7z" fill="currentColor"/><path d="M9.5 16.5h3l2-4 3 8 2-4h3" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>Pay<b>Guard</b></span>
+  </a>
+  <div class="top-r">
+    <nav class="topnav" aria-label="Sections">
+      <a href="/app">Check</a>
+      <a href="/trends">Trends</a>
+      <a href="/family">Family</a>
+    </nav>
+    <div data-usermenu></div>
+  </div>
+</header>
+
+<main class="acct" id="acct" hidden>
+  <!-- identity -->
+  <section class="id-card">
+    <div class="id-av" id="id-av" aria-hidden="true"></div>
+    <div class="id-main">
+      <p class="kicker"><span class="dot"></span> OPERATOR PROFILE</p>
+      <h1 id="id-name"></h1>
+      <p class="id-email"><span id="id-email"></span> <span class="badge-v" id="id-verified"></span></p>
+      <p class="id-since" id="id-since"></p>
+    </div>
+    <div class="id-stats">
+      <div><b id="st-checks">0</b><span>checks</span></div>
+      <div class="r"><b id="st-threats">0</b><span>threats caught</span></div>
+      <div class="g"><b id="st-devices">0</b><span>signed-in devices</span></div>
+    </div>
+  </section>
+
+  <div class="verify-note" id="verify-note" hidden>
+    <span>Confirm your email so we can reach you about sign-ins and password resets.</span>
+    <button class="btn-blue" type="button" id="resend">Send the link again</button>
+  </div>
+
+  <div class="acct-grid">
+    <!-- profile -->
+    <section class="panel" aria-labelledby="h-profile">
+      <h2 id="h-profile"><i class="ic blue"></i> Profile</h2>
+      <form id="f-profile" novalidate>
+        <label class="fl2"><span>Name</span><input name="name" maxlength="60" autocomplete="name" required></label>
+        <label class="fl2"><span>Mobile (optional)</span><input name="phone" inputmode="tel" autocomplete="tel" placeholder="10-digit Indian mobile"></label>
+        <label class="fl2"><span>Language for emails</span>
+          <select name="lang"><option value="en">English</option><option value="hi">हिंदी</option><option value="kn">ಕನ್ನಡ</option></select></label>
+        <label class="switch"><input type="checkbox" name="login_alerts"><i></i>
+          <span><b>Email me when someone signs in</b><small>With a one-click link to lock them out if it wasn't you.</small></span></label>
+        <p class="ferr" role="alert"></p>
+        <button class="btn-red" type="submit"><span>Save changes</span></button>
+      </form>
+    </section>
+
+    <!-- security -->
+    <section class="panel" aria-labelledby="h-sec">
+      <h2 id="h-sec"><i class="ic red"></i> Password</h2>
+      <form id="f-pass" novalidate>
+        <label class="fl2"><span>Current password</span><input name="current" type="password" autocomplete="current-password" required></label>
+        <label class="fl2"><span>New password</span><input name="new" type="password" autocomplete="new-password" minlength="8" required placeholder="At least 8 characters"></label>
+        <p class="ferr" role="alert"></p>
+        <button class="btn-red" type="submit"><span>Change password</span></button>
+        <p class="hint">Other devices stay signed in. To sign them out, use the list below.</p>
+      </form>
+    </section>
+
+    <!-- devices -->
+    <section class="panel wide" aria-labelledby="h-dev">
+      <div class="panel-h">
+        <h2 id="h-dev"><i class="ic green"></i> Where you're signed in</h2>
+        <button class="btn-ghost small" type="button" id="logout-all">Sign out everywhere</button>
+      </div>
+      <ul class="devices" id="devices"></ul>
+    </section>
+
+    <!-- history -->
+    <section class="panel wide" id="history" aria-labelledby="h-hist">
+      <div class="panel-h">
+        <h2 id="h-hist"><i class="ic red"></i> Your check history</h2>
+        <button class="btn-ghost small" type="button" id="clear-hist">Clear history</button>
+      </div>
+      <p class="hint">Only the verdict is saved (never your messages, photos or files). Scammer IDs are shown masked.</p>
+      <ul class="hist" id="hist"></ul>
+      <div class="hist-empty" id="hist-empty" hidden>
+        <p>No checks yet. Everything you check while signed in shows up here.</p>
+        <a class="btn-red" href="/app"><span>Check something</span></a>
+      </div>
+    </section>
+
+    <!-- danger -->
+    <section class="panel wide danger-zone" aria-labelledby="h-del">
+      <h2 id="h-del"><i class="ic red"></i> Delete account</h2>
+      <p>This removes your profile, history and every session for good. Reports you made about scammers stay (they never contained your details).</p>
+      <form id="f-del" class="del-row" novalidate>
+        <input name="password" type="password" autocomplete="current-password" placeholder="Your password to confirm" required>
+        <button class="btn-ghost danger" type="submit">Delete my account</button>
+      </form>
+      <p class="ferr" role="alert"></p>
+    </section>
+  </div>
+
+  <div class="acct-foot"><button class="btn-ghost" type="button" id="logout">Sign out of this device</button></div>
+</main>
+
+<div class="cy-toast" id="cy-toast" role="status"></div>
+<script src="/pgauth.js"></script>
+<script src="/account.js"></script>
+</body>
+</html>

@@ -559,7 +559,7 @@
   document.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-act]"); if (!b) return;
     const act = b.dataset.act;
-    if (act === "again") { stopAudio(); history.pushState({}, "", "/"); current = null; show("home"); }
+    if (act === "again") { stopAudio(); history.pushState({}, "", "/app"); current = null; show("home"); }
     if (act === "speak") speak();
     if (act === "share") share();
   });

@@ -41,7 +41,7 @@
   const shared = [q.get("share_title"), q.get("share_text") || q.get("text"), q.get("share_url")].filter(Boolean).join("\n").trim();
   if (shared) {
     $("#msgtext").value = shared;
-    history.replaceState({}, "", "/?mode=msg" + (q.get("report") ? "&report=" + encodeURIComponent(q.get("report")) : ""));
+    history.replaceState({}, "", "/app?mode=msg" + (q.get("report") ? "&report=" + encodeURIComponent(q.get("report")) : ""));
     setTimeout(() => check(shared), 50);
   }
 
