@@ -148,3 +148,23 @@ html[lang="hi"] .cyber h1, html[lang="kn"] .cyber h1, html[lang="ta"] .cyber h1,
 .cyber .memhit { background: rgba(10, 0, 4, .55); color: #fff; border: 1px solid rgba(255, 255, 255, .25); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .cyber .memhit a { color: #ffd8de; }
 .cyber .mlist { animation: rise .7s var(--ease-out) both; }
+
+/* APK: optional AI analyst card (app.js renderAI) */
+.aicard { position: relative; overflow: hidden; border-color: rgba(47, 139, 255, .35) !important; }
+.aicard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: linear-gradient(var(--c-blue), var(--c-red)); }
+.aicard.low::before { background: linear-gradient(var(--c-blue), var(--c-green)); }
+.ai-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.ai-badge { display: inline-flex; align-items: center; gap: 8px; font: 600 .7rem var(--f-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--c-blue2); }
+.ai-badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c-blue); box-shadow: 0 0 10px var(--c-blue); animation: dotpulse 1.6s infinite; }
+.ai-model { font: 500 .72rem var(--f-mono); }
+.ai-sum { margin: 0 0 8px; font-size: 1.08rem; line-height: 1.4; }
+.ai-exp { margin: 0 0 14px; color: #c9cbd8; line-height: 1.6; }
+.ai-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.ai-cols > div { padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, .3); border: 1px solid rgba(255, 255, 255, .06); }
+.ai-cols b { display: block; margin-bottom: 6px; font-size: .86rem; }
+.ai-cols ul { margin: 0; padding-left: 18px; color: #c9cbd8; font-size: .9rem; line-height: 1.55; }
+.ai-bad { border-left: 3px solid var(--c-red) !important; } .ai-bad b { color: var(--c-red2); }
+.ai-ok { border-left: 3px solid var(--c-green) !important; } .ai-ok b { color: var(--c-green); }
+.ai-act { margin: 14px 0 0; padding: 12px 14px; border-radius: 12px; background: rgba(47, 139, 255, .08); border: 1px solid rgba(47, 139, 255, .25); }
+.ai-note { margin: 10px 0 0; font-size: .76rem; }
+.ai-off { margin: 0; }

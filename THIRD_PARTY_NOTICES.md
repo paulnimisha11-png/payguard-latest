@@ -33,6 +33,7 @@ license. Nothing here is copied into our source files except where marked "bundl
 |---|---|
 | [Supabase](https://supabase.com) (hosted Postgres) or any Postgres | Storing accounts |
 | [Brevo](https://www.brevo.com) or [Resend](https://resend.com) email API | Welcome, sign-in alert and password emails |
+| [Google Gemini API](https://ai.google.dev) | Optional AI explanation of APK scan results (only extracted metadata is sent) |
 
 ## Artwork
 The hooded figure, shield logo, warp-speed light rays, matrix rain and all other visuals are original SVG/canvas drawings

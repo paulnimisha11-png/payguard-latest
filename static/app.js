@@ -433,6 +433,33 @@
     window.renderPay && window.renderPay(r);
     window.renderMemory && window.renderMemory(r);
     renderGuard(r);
+    renderAI(r);
+  }
+
+  // APK only: the optional Gemini explanation. It explains the rule findings; the verdict and score above come from
+  // PayGuard's own rules and never from the LLM. Hidden when the layer is off; a quiet note if it failed.
+  function renderAI(r) {
+    const card = $("#aicard");
+    const ai = r.kind ? null : r.ai;
+    if (!ai || ai.status === "disabled") { card.hidden = true; return; }
+    card.hidden = false;
+    card.className = "card aicard " + (r.verdict?.level || "");
+    if (ai.status !== "ok") {
+      card.innerHTML = `<div class="ai-head"><span class="ai-badge">AI analyst</span></div>
+        <p class="dim ai-off">The AI explanation isn't available right now. The verdict above is complete: it comes from PayGuard's own analysis.</p>`;
+      return;
+    }
+    const li = (xs) => xs.map((x) => `<li>${esc(x)}</li>`).join("");
+    card.innerHTML = `
+      <div class="ai-head"><span class="ai-badge">AI analyst</span><span class="dim ai-model">${esc(ai.model || "")}</span></div>
+      <h3 class="ai-sum">${esc(ai.risk_summary)}</h3>
+      <p class="ai-exp">${esc(ai.explanation)}</p>
+      <div class="ai-cols">
+        ${ai.suspicious_indicators.length ? `<div class="ai-bad"><b>Why it looks suspicious</b><ul>${li(ai.suspicious_indicators)}</ul></div>` : ""}
+        ${ai.legitimate_possibilities.length ? `<div class="ai-ok"><b>Innocent explanations to consider</b><ul>${li(ai.legitimate_possibilities)}</ul></div>` : ""}
+      </div>
+      <p class="ai-act"><b>What to do:</b> ${esc(ai.recommended_action)}</p>
+      <p class="dim ai-note">Written by an AI from the extracted facts only (the app file is never sent). The risk score comes from PayGuard's rules.</p>`;
   }
 
   // A protected family member gets a "call your son/daughter first" button on risky results.
