@@ -22,9 +22,6 @@ It uses the same backend as the website (`/api/qr/text`, `/api/qr/image`, `/api/
 | **Offline fallback** | If the server can't be reached, basic UPI rules run on the phone (refund/prize lures, AutoPay mandates, collect requests, fake official names). It never auto-pays in offline mode. |
 | **Payment screenshot check** | "Check a payment screenshot" (or share an image from WhatsApp → PayGuard) → edit detection, pending/failed status, bad reference numbers. |
 | **APK check** | Share an .apk to PayGuard, or pick one → APK X-Ray report. |
-| **Scam message check** | Long-press an SMS / WhatsApp message → Share → PayGuard (or paste it on the home screen) → scam type, what it wants you to do, links/UPI IDs/numbers found, one-tap report. A bare link still goes to the link checker. |
-| **Family protection** | Home → Family protection (the website's /family page inside the app, sharing the app's identity). Link a parent's phone with a 6-digit code. Their risky checks and "pay anyway" taps alert you; the app shows alerts as notifications (checks every ~15 min in the background and every time it opens). |
-| **Scam trends** | Home → Scam trends: what's rising this week and the most-reported UPI IDs / numbers / websites. |
 | **3 languages** | UI in English / हिंदी / ಕನ್ನಡ following the phone language; warning language selectable in Settings. |
 
 ## Get the APK onto your phone
@@ -49,28 +46,10 @@ cd android-upi-intercept
 ./gradlew installDebug               # installs straight onto a USB-connected phone
 ```
 
-### Signing: demo key vs. your own key
-Builds are signed with **your private key** when it's provided, and otherwise with the **public demo key**
-(`app/payguard-demo.keystore`, password `payguard`), which is fine for the hackathon demo but must never be used
-for an app you share widely: anyone can sign a fake "PayGuard" with it. The GitHub release notes say which key signed
-each build.
-
-Create your own key once (keep the file and passwords private, never commit them):
-```bash
-keytool -genkeypair -v -keystore payguard-release.jks -alias payguard -keyalg RSA -keysize 4096 -validity 10000
-base64 -w0 payguard-release.jks > keystore.b64      # macOS: base64 -i payguard-release.jks -o keystore.b64
-```
-Then in GitHub → Settings → Secrets and variables → Actions → **Secrets**, add:
-`ANDROID_KEYSTORE_BASE64` (contents of keystore.b64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`payguard`),
-`ANDROID_KEY_PASSWORD`. Local builds read the same values as `PAYGUARD_KEYSTORE_FILE`, `PAYGUARD_KEYSTORE_PASSWORD`,
-`PAYGUARD_KEY_ALIAS`, `PAYGUARD_KEY_PASSWORD` from environment variables or `~/.gradle/gradle.properties`.
-Phones that installed a demo-signed build must uninstall it once before installing the first build signed with the
-new key (Android refuses updates signed by a different key).
-
 ### Let people download it from your website
 Copy the APK to `downloads/payguard.apk` in the backend folder (or set `APKXRAY_APP_APK_URL` to the GitHub release link). The website's "PayGuard for Android" section then shows a **Download the app** button.
 
-Builds without your own key are signed with the public demo key, so a newer build installs over an older one. **Before sharing the app widely, set up your own key** (see "Signing" below).
+All builds are signed with the same demo key (`app/payguard-demo.keystore`), so a newer build installs over an older one. **Before publishing to the Play Store, replace it with a private key kept out of git.**
 
 ## First-time setup on the phone
 1. **Connect to your server.** Open the PayGuard website on your laptop and scroll to the bottom. In the app: **Settings → Scan connect code** → point at the QR. (Or type the URL, e.g. your `https://….lhr.life` tunnel link.) "Test connection" should say ✓ Working.
@@ -92,7 +71,6 @@ adb shell am start -a android.intent.action.VIEW -d "upi://pay?pa=9876501234@ybl
 - **UPI apps' own scanners bypass PayGuard.** Scanning *inside* GPay/PhonePe never creates a `upi://` link Android can route, so no app can intercept it. That's why the flow is "scan with PayGuard (or the camera), pay in your UPI app".
 - **Some UPI apps limit payments started from links.** For person-to-person QRs, GPay/PhonePe sometimes refuse link payments for security. Shop (merchant) QRs normally work. When that happens, the app shows "UPI app refused the link? Open it and pay using the copied UPI ID"; the UPI ID is one tap to copy.
 - **Needs Google Play services** for the QR scanner (almost every Indian Android phone has it). Without it, use "QR from a photo or screenshot".
-- **Family alerts on the Android app are checked every ~15 minutes** (Android's minimum for background jobs) and instantly whenever the app is opened. Instant pushes on Android need Firebase Cloud Messaging (a free Firebase project + `google-services.json`), which isn't set up here. For instant alerts today, the guardian can also open the website in Chrome → Family → "Turn on notifications".
 - `usesCleartextTraffic` is on so you can test against `http://192.168.x.x:8000` on your Wi-Fi. For production, serve the backend over https and turn it off.
 
 ## Code map
@@ -106,9 +84,6 @@ java/app/payguard/shield/
   Api.java               JSON + multipart calls to the PayGuard backend
   Scanner.java           Google code scanner wrapper
   SettingsActivity.java  server URL, connect-QR, warning language
-  Prefs.java / Ui.java   settings storage (incl. family device token), view helpers
-  Family.java            device registration, alert polling → notifications, 15-min JobScheduler
-  AlertJobService.java   the background job
-  WebActivity.java       /family and /trends pages with a JS bridge sharing the device token
+  Prefs.java / Ui.java   settings storage, view helpers
 res/values{,-hi,-kn}/strings.xml     all text in 3 languages
 ```

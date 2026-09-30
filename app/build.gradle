@@ -1,0 +1,79 @@
+plugins {
+    id 'com.android.application'
+}
+
+def server = (project.findProperty('payguardServer') ?: '').toString().trim()
+
+// Secrets come from a Gradle property or an environment variable (GitHub Actions secrets are passed as env vars).
+def secret = { String name ->
+    def v = project.findProperty(name) ?: System.getenv(name)
+    return v ? v.toString() : null
+}
+def releaseKeystore = secret('PAYGUARD_KEYSTORE_FILE')
+if (releaseKeystore && !file(releaseKeystore).exists()) {
+    throw new GradleException("PAYGUARD_KEYSTORE_FILE points to a missing file: ${releaseKeystore}")
+}
+if (!releaseKeystore) {
+    logger.warn("PayGuard: no release key set, signing with the PUBLIC demo key. Fine for testing, never for publishing.")
+}
+
+android {
+    namespace 'app.payguard.shield'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'app.payguard.shield'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+        buildConfigField 'String', 'DEFAULT_SERVER', "\"${server}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    // Signing
+    // - Release builds use YOUR private key when it's provided (GitHub secrets in CI, or ~/.gradle/gradle.properties /
+    //   environment variables locally): PAYGUARD_KEYSTORE_FILE, PAYGUARD_KEYSTORE_PASSWORD, PAYGUARD_KEY_ALIAS,
+    //   PAYGUARD_KEY_PASSWORD. The private key is never committed.
+    // - Without it, builds fall back to the PUBLIC demo key (payguard-demo.keystore, password "payguard") so the
+    //   hackathon demo still builds. Anyone can sign an app with that key, so never publish a demo-signed APK.
+    signingConfigs {
+        demo {
+            storeFile file('payguard-demo.keystore')
+            storePassword 'payguard'
+            keyAlias 'payguard'
+            keyPassword 'payguard'
+        }
+        if (releaseKeystore) {
+            release {
+                storeFile file(releaseKeystore)
+                storePassword secret('PAYGUARD_KEYSTORE_PASSWORD')
+                keyAlias secret('PAYGUARD_KEY_ALIAS')
+                keyPassword secret('PAYGUARD_KEY_PASSWORD') ?: secret('PAYGUARD_KEYSTORE_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.demo
+        }
+        release {
+            minifyEnabled false
+            signingConfig releaseKeystore ? signingConfigs.release : signingConfigs.demo
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Google code scanner: full-screen QR scanner provided by Google Play services, no camera permission needed.
+    implementation 'com.google.android.gms:play-services-code-scanner:16.1.0'
+}
