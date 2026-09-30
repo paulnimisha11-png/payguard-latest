@@ -12,11 +12,11 @@
   };
   const LEVEL = { danger: "danger", suspicious: "warn", caution: "warn", low: "safe" };
   const TEXT = {
-    en: { scan: "ANALYSING…", danger: "SCAM DETECTED", warn: "SUSPICIOUS", caution: "BE CAREFUL", safe: "LOOKS SAFE",
+    en: { verified: "VERIFIED", suspicious: "SUSPICIOUS", unverified: "UNVERIFIED", scan: "ANALYSING…", danger: "SCAM DETECTED", warn: "SUSPICIOUS", caution: "BE CAREFUL", safe: "LOOKS SAFE",
           kick: "PAYGUARD VERDICT", kickScan: "SCANNING", risk: "risk" },
-    hi: { scan: "जाँच हो रही है…", danger: "धोखा पकड़ा गया", warn: "संदिग्ध", caution: "सावधान रहें", safe: "सुरक्षित लगता है",
+    hi: { verified: "सत्यापित", suspicious: "संदिग्ध", unverified: "पुष्टि नहीं हुई", scan: "जाँच हो रही है…", danger: "धोखा पकड़ा गया", warn: "संदिग्ध", caution: "सावधान रहें", safe: "सुरक्षित लगता है",
           kick: "PAYGUARD का फ़ैसला", kickScan: "स्कैन", risk: "जोखिम" },
-    kn: { scan: "ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…", danger: "ಮೋಸ ಪತ್ತೆಯಾಗಿದೆ", warn: "ಅನುಮಾನಾಸ್ಪದ", caution: "ಎಚ್ಚರಿಕೆ", safe: "ಸುರಕ್ಷಿತವಾಗಿದೆ",
+    kn: { verified: "ದೃಢೀಕರಿಸಲಾಗಿದೆ", suspicious: "ಅನುಮಾನಾಸ್ಪದ", unverified: "ದೃಢೀಕರಿಸಲಾಗಿಲ್ಲ", scan: "ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…", danger: "ಮೋಸ ಪತ್ತೆಯಾಗಿದೆ", warn: "ಅನುಮಾನಾಸ್ಪದ", caution: "ಎಚ್ಚರಿಕೆ", safe: "ಸುರಕ್ಷಿತವಾಗಿದೆ",
           kick: "PAYGUARD ತೀರ್ಪು", kickScan: "ಸ್ಕ್ಯಾನ್", risk: "ಅಪಾಯ" },
   };
   const KIND = { msg: "Message", qr: "QR / UPI", shot: "Payment screenshot", apk: "App file" };
@@ -169,8 +169,13 @@
       if (!el || !r || !r.verdict) return;
       resultS = resultS || new Sentinel(el);
       const lvl = r.verdict.level;
-      const state = LEVEL[lvl] || "warn";
-      const title = lvl === "caution" ? tx("caution") : tx(state);
+      let state = LEVEL[lvl] || "warn";
+      let title = lvl === "caution" ? tx("caution") : tx(state);
+      const vs = r.kind === "shot" && r.verification ? r.verification.status : null;
+      if (vs) {                  // a screenshot is never "safe": only a trusted source can verify a payment
+        state = vs === "VERIFIED" ? "safe" : vs === "SUSPICIOUS" ? "danger" : "warn";
+        title = tx(vs.toLowerCase());
+      }
       const ml = r.ml && r.ml.status === "ok" ? r.ml : null;
       const sub = ml ? `${KIND[r.kind]} · ML scam probability ${Math.round(ml.scam_probability_percent)}%`
         : `${KIND[r.kind] || "App file"} · ${tx("risk")} ${r.verdict.score}/100`;

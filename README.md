@@ -128,6 +128,13 @@ Text is read with RapidOCR (`rapidocr_onnxruntime`, installed by `pip install -r
 
 API: `POST /api/screenshot` (multipart `file`, optional `expected_amount`), `GET /api/screenshot/{sha256}`, page `/s/{sha256}`.
 
+### Verification result: VERIFIED / SUSPICIOUS / UNVERIFIED
+Every screenshot check also returns `verification` (shown as the "Payment verification" card and on the sentinel):
+- **Extracted fields:** amount, UPI ID, payee, UTR / transaction ID, app transaction ID, date & time, status, and any **QR / UPI code on the image** (parsed with the same strict UPI parser as the QR scanner).
+- **Extra consistency checks** (`app/screenshot/verify.py`): UPI ID format, impossible dates (31 Feb), a QR code on the image that is malformed or pays a **different UPI ID / amount** than the receipt claims. OCR noise read from QR squares is ignored.
+- **Checks performed:** each check with pass / fail / warning / skipped and why (metadata, pixel forensics, OCR, required fields, status, amounts, UPI ID, reference, date, QR, PayGuard history, bank SMS, trusted source).
+- **Status:** `SUSPICIOUS` when tampering or inconsistency indicators are found; `UNVERIFIED` when the screenshot is internally consistent but not independently confirmed; `VERIFIED` **only** when a trusted transaction source confirms the payment. No such source is connected (`verify.TRUSTED_SOURCES` is an empty hook for a real, authenticated bank / payment-gateway integration), so today a clean screenshot is always `UNVERIFIED`. PayGuard's own SQLite history (reused UTRs, earlier edited copies) can reveal fakes but is never treated as proof that a payment happened.
+
 ## Android app (UPI interceptor)
 `android-upi-intercept/` — scan a shop's QR with PayGuard: safe payments open your UPI app pre-filled, scams stop on a warning screen. It can also become the phone's handler for all `upi://` links (camera, Google Lens, WhatsApp, merchant apps). See **android-upi-intercept/README-UPI-INTENT.md** for building (GitHub Actions builds the APK automatically), installing and the demo script.
 

@@ -941,6 +941,8 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
     if HAS_OCR:
         try:
             lines, ocr_img, ocr_scale = _ocr(im)
+            from .verify import drop_qr_text
+            lines = drop_qr_text(lines, ocr_img)
             ex = _extract(lines, arr)
         except Exception:
             lines = []
@@ -1245,6 +1247,11 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
                   "ಸಾಮಾನು ಕೊಡುವ ಮೊದಲು ನಿಮ್ಮ UPI ಆ್ಯಪ್ ಅಥವಾ ಬ್ಯಾಂಕ್ SMS ತೆರೆದು ಹಣ ನಿಜವಾಗಿ ಬಂದಿದೆಯೇ, ಅದೇ ಉಲ್ಲೇಖ ಸಂಖ್ಯೆಯೊಂದಿಗೆ, ಎಂದು ನೋಡಿ."),
                 [f"Look for reference {ex['utr']['utr']} in your own app" if ex.get("utr") else ""]))
 
+    # verification: UPI ID format, QR / UPI code on the image vs the receipt, impossible dates (see verify.py)
+    from . import verify
+    extra_f, extra = verify.extra_findings(ex, data, bool(lines))
+    F.extend(extra_f)
+
     F.sort(key=lambda x: (SEVERITY_ORDER[x["severity"]], -x["points"]))
     score = min(100, sum(x["points"] for x in F))
     if any(x["severity"] == "critical" for x in F):
@@ -1253,7 +1260,7 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
         if score >= threshold:
             break
 
-    return {
+    rep = {
         "kind": "shot",
         "id": sha,
         "file": {"name": filename, "size": len(data), "format": meta["format"], "width": W, "height": H, "sha256": sha, "phash": ph},
@@ -1274,6 +1281,8 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
             "bank_sms": {k: sms[k] for k in ("amount", "utr", "direction")} if sms else None,
             "fingerprint": fp,
             "own_score": own_score,
+            "upi_id": extra.get("upi_id"),
+            "qr": extra.get("qr") or None,
         },
         "verdict": {"score": score, "level": level, "headline": headline, "advice": advice},
         "findings": F,
@@ -1286,6 +1295,9 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
                "Confirm in your bank app." if OCR_ENGINE == "tesseract" else "")
         ],
     }
+    rep["verification"] = verify.summarize(rep, ex, extra, ran_ocr=HAS_OCR, bank_sms_given=bool(sms),
+                                           history_checked=bool(seen_lookup and ex.get("utr") and lines))
+    return rep
 
 
 SHOT_VERDICTS = [
