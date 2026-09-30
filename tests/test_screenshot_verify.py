@@ -214,7 +214,8 @@ def test_api_returns_verification_and_history_is_not_proof():
         again = c.post("/api/screenshot", files={"file": ("r.png", img, "image/png")}).json()["verification"]
         assert again["status"] == "UNVERIFIED"
         # a different receipt re-using that reference number with another amount: SUSPICIOUS via history
-        other = c.post("/api/screenshot", files={"file": ("r2.png", receipt(amount="9,800", utr="603322118877"), "image/png")}).json()
+        other = c.post("/api/screenshot", files={"file": ("r2.png", receipt(amount="3,450", utr="603322118877"), "image/png")}).json()
+        assert other["details"]["amount"] == 3450, "OCR did not read the amount"
         assert other["verification"]["status"] == "SUSPICIOUS"
         assert {x["id"]: x for x in other["verification"]["checks"]}["history"]["status"] == "fail"
         # the stored report keeps the verification block
