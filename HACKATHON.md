@@ -17,6 +17,7 @@ one-tap complaints, the trends page, family guardian mode and the Android UPI in
 | Landing page | Scroll story: an original SVG hooded figure whose rim light turns from blue to red and whose eyes open as you scroll, intercepted scam messages typing in, warp-speed light rays on a canvas, a scroll-driven scam-message demo, 3D feature cards, live counters | `static/landing.*` |
 | Sign-in terminal | Red/black "authentication terminal" with matrix rain, login / register tabs, reset flow | `static/login.*`, `static/pgauth.js` |
 | Account page | Profile, email alerts toggle, password, devices, history, delete | `static/account.*` |
+| Verdict sentinel | The hooded figure appears on every scanner's result: blue with a scanning beam while checking, then red light rays and glowing eyes for a scam, yellow for suspicious, green for safe (APK, QR/UPI, screenshot and message checks) | `static/hood.js`, `static/sentinel.*` |
 | App theme | Black / red / green / blue theme for the scanner, radar, family and admin pages; user menu on every page | `static/cyber.css`, `static/theme.css` |
 
 ## How to check it

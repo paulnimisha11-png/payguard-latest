@@ -1,0 +1,80 @@
+/* The Sentinel: hooded figure on the scanner's progress + result screens (see sentinel.js). */
+.sentinel { --sn: #2f8bff; --sn-rgb: 47, 139, 255; --rim-a: #2f8bff; --rim-b: #7fc3ff; --eyes: .45;
+  position: relative; overflow: hidden; isolation: isolate; height: 320px; margin: 4px 0 14px; border-radius: 22px; background: #040406;
+  border: 1px solid rgba(var(--sn-rgb), .55); box-shadow: 0 0 0 1px rgba(var(--sn-rgb), .12), 0 0 70px -18px rgba(var(--sn-rgb), .7), inset 0 0 80px rgba(0, 0, 0, .8);
+  transition: border-color .6s, box-shadow .6s; animation: snIn .8s var(--ease-out, ease) both; }
+@keyframes snIn { from { opacity: 0; transform: translateY(14px) scale(.985); filter: blur(6px); } }
+.sn-rays { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+.sn-grid { position: absolute; left: -20%; right: -20%; bottom: -30px; height: 55%; z-index: 1; pointer-events: none; opacity: .5;
+  background-image: linear-gradient(rgba(var(--sn-rgb), .35) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--sn-rgb), .35) 1px, transparent 1px);
+  background-size: 44px 44px; transform: perspective(300px) rotateX(64deg); transform-origin: 50% 100%;
+  mask-image: linear-gradient(to top, #000, transparent 80%); -webkit-mask-image: linear-gradient(to top, #000, transparent 80%);
+  animation: snFloor 2.8s linear infinite; }
+@keyframes snFloor { to { background-position: 0 44px, 0 0; } }
+
+/* the figure: right side on wide screens */
+.sn-fig { position: absolute; z-index: 2; bottom: -34px; right: 7%; height: 104%; aspect-ratio: 600 / 720; }
+.sn-fig .hood { width: 100%; height: 100%; display: block; overflow: visible; animation: snBreathe 5s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes snBreathe { 50% { transform: translateY(-3px) scale(1.006); } }
+.sn-fig .aura { fill: var(--sn); opacity: .22; transition: fill .6s; }
+.sn-fig .eyes path { fill: var(--rim-b); opacity: var(--eyes); transition: fill .6s, opacity .6s; }
+.sn-fig .eyes { animation: snBlink 5s infinite; transform-origin: 300px 300px; }
+@keyframes snBlink { 0%, 44%, 48%, 100% { transform: scaleY(1); } 46% { transform: scaleY(.1); } }
+.sentinel[data-state="danger"] .sn-fig .eyes path { fill: #ff2a45; }
+.sentinel[data-state="danger"] .sn-fig .hood { animation: snBreathe 5s ease-in-out infinite, snTwitch 4s steps(1) infinite; }
+@keyframes snTwitch { 0%, 91%, 100% { filter: none; } 92% { filter: drop-shadow(-4px 0 0 rgba(255, 31, 61, .7)) drop-shadow(4px 0 0 rgba(47, 139, 255, .5)); } 94% { filter: none; }
+  95% { filter: drop-shadow(3px 0 0 rgba(255, 31, 61, .7)); } }
+
+/* scanning beam over the figure (blue state only) */
+.sn-beam { position: absolute; z-index: 3; right: 7%; width: calc(320px * 600 / 720 * 1.12); height: 3px; top: 0; opacity: 0; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--rim-b), transparent); box-shadow: 0 0 18px 4px rgba(var(--sn-rgb), .6); }
+.sentinel[data-state="scan"] .sn-beam { opacity: 1; animation: snBeam 1.6s ease-in-out infinite alternate; }
+@keyframes snBeam { from { top: 12%; } to { top: 92%; } }
+
+/* copy on the left */
+.sn-copy { position: absolute; z-index: 4; left: 0; top: 0; bottom: 0; width: 60%; display: flex; flex-direction: column; justify-content: center;
+  padding: 0 clamp(18px, 4vw, 40px); background: linear-gradient(90deg, rgba(4, 4, 6, .82) 0%, rgba(4, 4, 6, .5) 65%, transparent); }
+.sn-kick { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font: 600 .7rem "JetBrains Mono", monospace; letter-spacing: .24em; color: var(--rim-b); }
+.sn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sn); box-shadow: 0 0 12px var(--sn); animation: dotpulse 1.4s infinite; }
+.sn-title { margin: 0; font: 900 clamp(1.7rem, 4.6vw, 3.1rem)/1.02 "Orbitron", "Inter", "Noto Sans Devanagari", "Noto Sans Kannada", sans-serif;
+  letter-spacing: .02em; color: var(--sn); text-shadow: 0 0 24px rgba(var(--sn-rgb), .7), 0 0 60px rgba(var(--sn-rgb), .35); transition: color .6s; }
+.sn-title .scr { color: #fff; opacity: .65; }
+.sn-sub { margin: 12px 0 0; font: 500 .85rem "JetBrains Mono", monospace; color: #c9cbd6; }
+.sentinel[data-state="scan"] .sn-title { font-size: clamp(1.3rem, 3.4vw, 2.2rem); }
+
+/* one-shot entrance when the verdict lands */
+.sn-ring { position: absolute; z-index: 1; width: 40px; height: 40px; right: calc(7% + 118px); top: 34%; border-radius: 50%; pointer-events: none;
+  border: 2px solid var(--sn); opacity: 0; }
+.sentinel.hit .sn-ring { animation: snRing 1.1s var(--ease-out, ease) forwards; }
+@keyframes snRing { 0% { opacity: .9; transform: scale(.5); } 100% { opacity: 0; transform: scale(14); } }
+.sentinel.hit::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: rgba(var(--sn-rgb), .45);
+  animation: snFlash .7s ease-out forwards; mix-blend-mode: screen; }
+@keyframes snFlash { from { opacity: 1; } to { opacity: 0; } }
+.sentinel.hit[data-state="danger"] { animation: snShake .5s; }
+@keyframes snShake { 15%, 55% { transform: translateX(-7px); } 35%, 75% { transform: translateX(7px); } 90% { transform: translateX(-2px); } }
+
+/* progress screen: the sentinel replaces the old scanner icon */
+.cyber #progress .prog { max-width: 720px; }
+.cyber #progress .scanner { display: none; }
+.sentinel.sm { height: 250px; margin: 0 0 16px; }
+.sentinel.sm .sn-fig { right: 50%; transform: translateX(50%); height: 80%; bottom: -26px; }
+.sentinel.sm .sn-title { font-size: clamp(1.1rem, 3vw, 1.6rem); }
+.sentinel.sm .sn-kick { margin-bottom: 6px; }
+.sentinel.sm .sn-beam { right: 50%; transform: translateX(50%); width: calc(250px * 600 / 720 * 1.15); }
+.sentinel.sm .sn-copy { width: 100%; bottom: auto; height: 42%; justify-content: flex-start; align-items: center; text-align: center; padding-top: 16px;
+  background: linear-gradient(180deg, rgba(4, 4, 6, .9), transparent); }
+
+@media (max-width: 640px) {
+  .sentinel { height: 380px; }
+  .sn-fig { right: 50%; transform: translateX(50%); height: 82%; bottom: 60px; }
+  .sn-beam { right: 50%; transform: translateX(50%); width: calc(380px * 600 / 720 * .82); }
+  .sn-ring { right: calc(50% - 20px); top: 32%; }
+  .sn-copy { width: 100%; justify-content: flex-end; align-items: center; text-align: center; padding-bottom: 22px;
+    background: linear-gradient(0deg, rgba(4, 4, 6, .96) 0%, rgba(4, 4, 6, .75) 30%, transparent 58%); }
+  .sn-title { font-size: clamp(1.6rem, 8vw, 2.2rem); }
+  .sentinel.sm { height: 260px; } .sentinel.sm .sn-fig { height: 78%; bottom: -20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sentinel, .sn-fig .hood, .sn-grid, .sn-fig .eyes { animation: none !important; }
+  .sentinel.hit::after, .sentinel.hit .sn-ring { display: none; }
+}

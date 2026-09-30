@@ -493,7 +493,9 @@ def _ocr(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
 def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
     """Words with boxes (original-image coordinates), grouped into lines, plus the prepared image."""
     g, scale, _dark = _prep_for_ocr(im)
-    # Two page-segmentation modes catch different rows; merge them, keeping the more confident word where they overlap.
+    # One full-page read as a uniform block (--psm 6). A second sparse-text read (--psm 11) cost ~35% more time and
+    # changed no result on our receipt tests: the right-column pass below already recovers the right-aligned amounts
+    # it used to find. Time matters here: the free Render plan has a tenth of a CPU.
     words: list[dict] = []
 
     def iou(a, b):
@@ -504,7 +506,7 @@ def _ocr_tess(im: Image.Image) -> tuple[list[dict], Image.Image, float]:
         return inter / ua if ua else 0
 
     base_cfg = "--oem 1 -c tessedit_do_invert=0 -c invert_threshold=0"
-    for psm in (11, 6):
+    for psm in (6,):
         d = pytesseract.image_to_data(g, config=f"--psm {psm} {base_cfg}", output_type=pytesseract.Output.DICT)
         for i, raw_txt in enumerate(d["text"]):
             txt = _norm_ocr((raw_txt or "").strip())

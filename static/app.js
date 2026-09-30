@@ -259,6 +259,7 @@
   function show(v) {
     if (v !== "result") stopAudio();
     views.forEach((x) => ($("#" + x).hidden = x !== v));
+    if (window.Sentinel) window.Sentinel.view(v);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
   function toast(msg) {
@@ -332,6 +333,7 @@
     const v = r.verdict;
     const box = $("#verdict");
     box.className = "verdict " + v.level;
+    if (window.Sentinel) window.Sentinel.verdict(r);
     $("#report-btn").hidden = v.level === "low";
     const isQR = r.kind === "qr", isShot = r.kind === "shot", isMsg = r.kind === "msg";
     [".triad-card", "#tech"].forEach((sel) => ($(sel).hidden = isQR || isShot || isMsg));

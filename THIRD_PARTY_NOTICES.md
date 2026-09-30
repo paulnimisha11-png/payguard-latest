@@ -36,7 +36,7 @@ license. Nothing here is copied into our source files except where marked "bundl
 
 ## Artwork
 The hooded figure, shield logo, warp-speed light rays, matrix rain and all other visuals are original SVG/canvas drawings
-made for this project (no stock or third-party images). UI effects (3D tilt cards, spotlight, decrypting text, magnetic buttons)
+made for this project (no stock or third-party images; a stock photo was looked at only as a pose/mood reference and nothing from it is included). UI effects (3D tilt cards, spotlight, decrypting text, magnetic buttons)
 are our own vanilla JS/CSS implementations inspired by common web-design patterns; no code was copied from UI kits.
 
 ## System programs (installed in the Docker image with apt, not bundled)

@@ -1,114 +1,205 @@
-# PayGuard for Android — UPI interceptor
+# APK X-Ray — see what an app can do to your phone *before* you tap Install
 
-The app sits **between a QR code and your UPI app**:
+Upload the `.apk` someone sent you on WhatsApp. APK X-Ray unzips it (never installs or runs it), decodes the binary `AndroidManifest.xml`, scans the compiled code, checks who signed it, and matches **dangerous permission combinations** — the recognised fingerprint of banking trojans and OTP stealers. The verdict comes in plain English, हिंदी and ಕನ್ನಡ, with read-aloud and a one-tap "send to family on WhatsApp" message.
 
-```
-Shop QR ──scan──▶ PayGuard ──check on server──▶  safe?     ──▶ your UPI app opens, everything pre-filled
-                                                  risky?    ──▶ "Continue to pay" / "Don't pay"
-                                                  scam?     ──▶ red scam screen, payment blocked
-```
+Part of **PayGuard** (Track 3 — Cybersecurity & Defense). The same app also contains the **PayPause QR / UPI scanner**:
 
-It uses the same backend as the website (`/api/qr/text`, `/api/qr/image`, `/api/screenshot`, `/api/scan`).
+## PayPause — QR code & UPI link scanner
+Upload a QR screenshot (or paste it with Ctrl/Cmd+V), scan with the camera, or paste a link. The server decodes the QR with OpenCV and shows **who gets the money, how much, and that it leaves YOUR account**.
 
-## What it does
-
-| Feature | How |
+| Rule | Trigger |
 |---|---|
-| **Scan a shop's QR to pay** | "Scan QR to pay" opens Google's QR scanner (no camera permission needed). Safe → a 3-second countdown, then your UPI app opens with payee and amount filled in. You can cancel during the countdown. |
-| **Check every UPI link automatically** | The app registers for `upi://` links. Choose PayGuard + **Always** once, and QR codes scanned with the phone camera / Google Lens, plus UPI links in WhatsApp, SMS or browsers, open in PayGuard first. |
-| **Scam screen** | Danger/suspicious → big red screen, "Don't pay — close". Paying anyway requires ticking "I know this person…". "Report scam" opens the website's pre-filled complaint flow. |
-| **Merchant apps keep working** | When a shopping app requests a UPI payment (`startActivityForResult`), PayGuard checks it, forwards to the UPI app, and **passes the UPI app's result back** to the shopping app. |
-| **No loop** | Payments are always handed to a specific UPI app (never back to PayGuard), even when PayGuard is the default handler. |
-| **Offline fallback** | If the server can't be reached, basic UPI rules run on the phone (refund/prize lures, AutoPay mandates, collect requests, fake official names). It never auto-pays in offline mode. |
-| **Payment screenshot check** | "Check a payment screenshot" (or share an image from WhatsApp → PayGuard) → edit detection, pending/failed status, bad reference numbers. |
-| **APK check** | Share an .apk to PayGuard, or pick one → APK X-Ray report. |
-| **Scam message check** | Long-press an SMS / WhatsApp message → Share → PayGuard (or paste it on the home screen) → scam type, what it wants you to do, links/UPI IDs/numbers found, one-tap report. A bare link still goes to the link checker. |
-| **Family protection** | Home → Family protection (the website's /family page inside the app, sharing the app's identity). Link a parent's phone with a 6-digit code. Their risky checks and "pay anyway" taps alert you; the app shows alerts as notifications (checks every ~15 min in the background and every time it opens). |
-| **Scam trends** | Home → Scam trends: what's rising this week and the most-reported UPI IDs / numbers / websites. |
-| **3 languages** | UI in English / हिंदी / ಕನ್ನಡ following the phone language; warning language selectable in Settings. |
+| Receive-money lure (critical) | UPI note/name mentions refund, prize, cashback, KYC, security deposit… |
+| AutoPay mandate (critical) | `upi://mandate` / recurring parameters |
+| Collect request | `upi://collect` |
+| Official-looking name, personal account | Payee name says SBI / customer care / police… but no merchant code |
+| Fake bank/brand website (critical) | Domain uses sbi, hdfc, paytm, uidai… but isn't the real domain |
+| APK download link, raw-IP host, punycode look-alike, `@` trick, link shortener, cheap TLD, bait words, no https | URL checks |
+| SMS QR (SIM-binding), USSD `*21*` QR (call forwarding) | `sms:` / `tel:` payloads |
 
-## Get the APK onto your phone
+API: `POST /api/qr/image` (multipart `file`) · `POST /api/qr/text` (`{"text": "upi://pay?..."}`). Demo images in `samples/qr/`. Camera scanning needs `localhost` or https.
 
-### Option A — GitHub builds it for you (no Android Studio needed)
-1. Push this whole project to a GitHub repository.
-2. GitHub Actions runs `.github/workflows/android.yml` automatically (tab **Actions** → *Build Android app*, about 5 minutes).
-3. Open the repo's **Releases** → **PayGuard Android (latest build)** on your phone → tap **PayGuard.apk**.
-4. Android asks to allow installing from your browser → allow → **Install**.
 
-Optional: in the repo, **Settings → Secrets and variables → Actions → Variables**, add `PAYGUARD_SERVER` = your server URL (e.g. `https://payguard.onrender.com`). It's then baked in as the default.
+## Run it
 
-### Option B — Android Studio
-1. **File → Open** → select the `android-upi-intercept` folder. Let Gradle sync; it downloads Gradle 8.7 and the Android libraries the first time.
-2. Plug in your phone (Developer options → USB debugging on) → press **Run ▶**.
-   Or **Build → Build App Bundle(s) / APK(s) → Build APK(s)** → the APK is in `app/build/outputs/apk/`.
-
-### Option C — command line (JDK 17 + Android SDK installed)
-```
-cd android-upi-intercept
-./gradlew assembleRelease            # → app/build/outputs/apk/release/app-release.apk
-./gradlew installDebug               # installs straight onto a USB-connected phone
-```
-
-### Signing: demo key vs. your own key
-Builds are signed with **your private key** when it's provided, and otherwise with the **public demo key**
-(`app/payguard-demo.keystore`, password `payguard`), which is fine for the hackathon demo but must never be used
-for an app you share widely: anyone can sign a fake "PayGuard" with it. The GitHub release notes say which key signed
-each build.
-
-Create your own key once (keep the file and passwords private, never commit them):
 ```bash
-keytool -genkeypair -v -keystore payguard-release.jks -alias payguard -keyalg RSA -keysize 4096 -validity 10000
-base64 -w0 payguard-release.jks > keystore.b64      # macOS: base64 -i payguard-release.jks -o keystore.b64
-```
-Then in GitHub → Settings → Secrets and variables → Actions → **Secrets**, add:
-`ANDROID_KEYSTORE_BASE64` (contents of keystore.b64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`payguard`),
-`ANDROID_KEY_PASSWORD`. Local builds read the same values as `PAYGUARD_KEYSTORE_FILE`, `PAYGUARD_KEYSTORE_PASSWORD`,
-`PAYGUARD_KEY_ALIAS`, `PAYGUARD_KEY_PASSWORD` from environment variables or `~/.gradle/gradle.properties`.
-Phones that installed a demo-signed build must uninstall it once before installing the first build signed with the
-new key (Android refuses updates signed by a different key).
-
-### Let people download it from your website
-Copy the APK to `downloads/payguard.apk` in the backend folder (or set `APKXRAY_APP_APK_URL` to the GitHub release link). The website's "PayGuard for Android" section then shows a **Download the app** button.
-
-Builds without your own key are signed with the public demo key, so a newer build installs over an older one. **Before sharing the app widely, set up your own key** (see "Signing" below).
-
-## First-time setup on the phone
-1. **Connect to your server.** Open the PayGuard website on your laptop and scroll to the bottom. In the app: **Settings → Scan connect code** → point at the QR. (Or type the URL, e.g. your `https://….lhr.life` tunnel link.) "Test connection" should say ✓ Working.
-2. **Turn on automatic checking.** Home → **Set PayGuard as UPI checker** → pick **PayGuard** → **Always**. You'll see "PayGuard is set up".
-   - If your phone opens GPay/PhonePe directly instead of asking: Settings → Apps → *that app* → **Open by default** → **Clear defaults**, then try again. The home screen tells you which app currently owns UPI links.
-
-## Demo script (at a stationery shop, or with the test QR sheet)
-1. Open PayGuard → **Scan QR to pay** → scan the *genuine shop* QR → green "No scam signs" → 3-second countdown → your UPI app opens with the shop's details. ✅
-2. Scan the *fake SBI refund* QR → red **Do NOT pay** + "Pretends you will RECEIVE money". The pay button is gone. 🛑
-3. With PayGuard as the default: close PayGuard, scan the same scam QR with the **phone camera / Google Lens** → tap the link → PayGuard opens first and blocks it.
-4. Share a fake payment screenshot from WhatsApp → **PayGuard** → "Likely fake or edited".
-
-Test from a computer with the phone on USB:
-```
-adb shell am start -a android.intent.action.VIEW -d "upi://pay?pa=9876501234@ybl&pn=SBI%20Refund&am=4999&tn=refund"
+pip install -r requirements.txt
+uvicorn app.main:app --port 8000
+# open http://localhost:8000 and drop samples/Courier_Delivery_Update.apk on it
 ```
 
-## Honest limits (tell judges before they ask)
-- **UPI apps' own scanners bypass PayGuard.** Scanning *inside* GPay/PhonePe never creates a `upi://` link Android can route, so no app can intercept it. That's why the flow is "scan with PayGuard (or the camera), pay in your UPI app".
-- **Some UPI apps limit payments started from links.** For person-to-person QRs, GPay/PhonePe sometimes refuse link payments for security. Shop (merchant) QRs normally work. When that happens, the app shows "UPI app refused the link? Open it and pay using the copied UPI ID"; the UPI ID is one tap to copy.
-- **Needs Google Play services** for the QR scanner (almost every Indian Android phone has it). Without it, use "QR from a photo or screenshot".
-- **Family alerts on the Android app are checked every ~15 minutes** (Android's minimum for background jobs) and instantly whenever the app is opened. Instant pushes on Android need Firebase Cloud Messaging (a free Firebase project + `google-services.json`), which isn't set up here. For instant alerts today, the guardian can also open the website in Chrome → Family → "Turn on notifications".
-- `usesCleartextTraffic` is on so you can test against `http://192.168.x.x:8000` on your Wi-Fi. For production, serve the backend over https and turn it off.
+Docker: `docker build -t apk-xray . && docker run -p 8000:8000 -v apkx:/data apk-xray`
 
-## Code map
+Deploy for free on Render / Railway / Fly.io: point them at this folder; the Dockerfile respects `$PORT`. It is a single service (API + website), so there's no separate frontend deployment.
+
+Tests: `python -m pytest -q tests` (120+ tests: APK, QR, screenshot, messages, complaints, trends, family, accounts). Each run uses its own temporary database. CI: `.github/workflows/backend.yml`.
+
+Deploy: `render.yaml` (Render → New → Blueprint), or any Docker host.
+
+### Optional environment variables
+| Variable | Effect |
+|---|---|
+| `ANTHROPIC_API_KEY` | "Send to family" message is written by Claude in natural Hindi/Kannada/English (falls back to built-in templates without it) |
+| `ANTHROPIC_MODEL` | default `claude-haiku-4-5-20251001` |
+| `VT_API_KEY` | Adds a VirusTotal hash lookup (how many antivirus engines already flag the file) |
+| `APKXRAY_MAX_MB` / `APKXRAY_TIMEOUT` / `APKXRAY_RATE_PER_MIN` / `APKXRAY_WORKERS` | 150 MB / 120 s / 12 scans per IP per minute / 2 worker processes |
+| `APKXRAY_DB` | SQLite path for the report cache (default `data/apkxray.db`) |
+| `APKXRAY_ADMIN_TOKEN` | enables `/admin.html` report moderation |
+| `APKXRAY_PUBLIC_MIN` | independent reports needed before something is listed on /trends (default 3) |
+| `APKXRAY_VOTE_SALT` | salt for hashing reporter ids and networks — set a long random value in production |
+| `APKXRAY_VAPID_PRIVATE` / `APKXRAY_VAPID_SUB` | Web Push key (PEM; auto-generated into `data/vapid_private.pem` if unset) and contact (`mailto:you@…`) |
+
+## Website, sign-in and accounts
+- `/` is the landing page (scroll story with an animated hooded figure, live numbers from `/api/trends`). The scanner is at `/app`;
+  old links such as `/?check=…`, `/?share_text=…` and `/?source=pwa` still open the scanner.
+- `/login` is the sign-in / register terminal, `/account` the account page. **Every scanner works without an account.**
+- Signed-in users get: their check history (verdicts only, scammer IDs masked; never messages, photos or files),
+  an email on every new sign-in with a one-click "wasn't me" reset link, a list of signed-in devices they can sign out,
+  password change / reset, and account deletion.
+- Security: passwords hashed with scrypt; sessions are random 256-bit tokens in an `HttpOnly; Secure; SameSite=Lax`
+  cookie and only their SHA-256 is stored; 30-day sliding sign-in; CSRF blocked (JSON-only + Origin check);
+  brute-force limits stored in the database (6 wrong passwords per account / 30 per network per 15 min, 10 sign-ups per network per hour);
+  the same error for "no such account" and "wrong password"; one-time links are stored hashed and expire.
+
+### Accounts: environment variables
+Without these the site still works: accounts are stored in the local SQLite file and emails are printed to the server log.
+| Variable | Effect |
+|---|---|
+| `DATABASE_URL` | Postgres for accounts, e.g. Supabase's **transaction pooler** string (`postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:6543/postgres`). Needed on Render, whose disk is wiped on every deploy. |
+| `BREVO_API_KEY` or `RESEND_API_KEY` | Send emails through Brevo or Resend's HTTP API (Render's free plan blocks SMTP) |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` | Or send through SMTP (e.g. a Gmail app password) when running locally |
+| `MAIL_FROM` / `MAIL_FROM_NAME` | Sender address (must be verified with Brevo/Resend) and name |
+| `PUBLIC_URL` | Site address used in email links (defaults to the address the request came to) |
+
+Set-up on Render (about 10 minutes):
+1. **Supabase** (free): create a project → *Connect* → copy the *Transaction pooler* URI, put your database password in it → Render → Environment → `DATABASE_URL`. Tables are created automatically on first start.
+2. **Brevo** (free, 300 emails/day): *Senders & IP* → add and verify your sender email → *SMTP & API* → create an API key → Render → `BREVO_API_KEY`, `MAIL_FROM`.
+3. `PUBLIC_URL` = `https://<your-app>.onrender.com`. Redeploy, then open `/api/health`: it should show `"accounts_db": "postgres"`, `"accounts_db_ok": true`, `"email": "brevo"`.
+
+Note: scan reports, community reports, trends and family links still use the local SQLite file, so on Render's free plan they reset when the service restarts.
+
+## Fake payment screenshot detector
+Third tab on the website (and in the Android app). Upload the "I've paid" screenshot someone showed you:
+- **File evidence:** photo-editor software in EXIF/PNG/XMP, edit history, photo-of-a-screen, odd crops
+- **Pixel forensics on the fields OCR finds** (amount, reference number, date, name): background patch behind the text vs. around it (paint-over edits), text style vs. same-size text (pasted-in numbers), error-level analysis for JPEGs
+- **Content logic:** pending / failed / request status, missing or malformed 12-digit UPI reference (UTR), reference number's date vs. the date shown, future / stale dates, conflicting amounts, amount vs. what you expected, and the **same reference number on a different-looking screenshot** (recompressed WhatsApp copies of the same image are recognised and not counted)
+- Result shows the screenshot with suspicious areas boxed in red, what was read, and findings in EN/HI/KN; it can go straight into a complaint
+
+Text is read with RapidOCR (`rapidocr_onnxruntime`, installed by `pip install -r requirements.txt`, models included, works offline). Tesseract is used as a fallback if installed. If no OCR engine is available the page shows a warning and a screenshot can never be reported as "no signs of editing". Demo images: `samples/screenshots/` (regenerate with `make_samples.py`).
+
+API: `POST /api/screenshot` (multipart `file`, optional `expected_amount`), `GET /api/screenshot/{sha256}`, page `/s/{sha256}`.
+
+## Android app (UPI interceptor)
+`android-upi-intercept/` — scan a shop's QR with PayGuard: safe payments open your UPI app pre-filled, scams stop on a warning screen. It can also become the phone's handler for all `upi://` links (camera, Google Lens, WhatsApp, merchant apps). See **android-upi-intercept/README-UPI-INTENT.md** for building (GitHub Actions builds the APK automatically), installing and the demo script.
+
+Backend support: `GET /api/app/connect.png` (QR the app scans to learn this server's address), `GET /download/payguard.apk` (serves `downloads/payguard.apk` or redirects to `APKXRAY_APP_APK_URL`), `/?check=<payload>` (the app hands a scam to the website's report flow).
+
+## Scam message checker (SMS / WhatsApp / email)
+Paste a message (or on Android share it to PayGuard) → `POST /api/message`. `app/message/analyzer.py` recognises 13 Indian scam scripts in English, Hindi (Devanagari + Hinglish) and Kannada — electricity cut-off, KYC / account block, parcel / customs, refund / prize, part-time job, instant loan, investment, "digital arrest", SIM block, "hi mum new number", "sent by mistake", e-challan, FASTag — and what the message wants you to do: share an OTP/PIN, enter a PIN to "receive", install AnyDesk or an APK, call a personal mobile number, pay a fee, join a video call, keep it secret. A topic alone is only a hint ("your electricity bill is due" stays low); topic + action is the scam. Every link goes through the QR scanner's link checks, and UPI IDs / numbers / websites / the message template are counted by community reports. Genuine OTP and bank-debit messages stay "low" (see `tests/test_message.py`: 22 real-world scam scripts, 14 genuine messages). The message text is never stored.
+
+## Scam trends page (`/trends`)
+Anonymous counters (day, kind, verdict, scam type — no content, no IPs) feed a public page: checks and scams caught this week vs last, a 14-day chart, rising scam types, and the most-reported UPI IDs, numbers and websites. **Protection against false reports:** an identifier is listed only after `APKXRAY_PUBLIC_MIN` (default 3) people report it from that many *different networks*, and only while fewer than half as many people say "this is genuine"; UPI IDs and numbers are partly masked; one report only makes a scan "caution", not "danger". Moderators use `/admin.html` with `APKXRAY_ADMIN_TOKEN` to approve, hide or clear entries (clearing also removes the warning from scans). Anyone can look up the exact ID/number/website they were given. For a presentation: `python scripts/seed_demo.py` (clearly labelled demo data; `--remove` deletes it).
+
+## Family guardian mode (`/family`)
+A guardian (son/daughter) creates a 6-digit code on their phone; the parent types it on theirs and confirms what will be shared. From then on, whenever the parent's phone gets a **dangerous or suspicious result** (message, QR/link, screenshot, app) — or they tick "pay anyway" on a risky UPI QR — every guardian gets an alert, and the parent sees a "Talk to Rahul before you pay — 📞 Call" card. Alerts contain the scam type and a masked identifier, never the message or screenshot; they're deleted after 30 days; either side can unlink; "Forget this phone" erases everything. No accounts or passwords: each phone keeps a random device secret (server stores only its SHA-256) and sends it as `X-PG-Device`, so alerts are raised on the server. Delivery: in-page inbox + **Web Push** (VAPID + aes128gcm implemented in `app/family/push.py`; works in Chrome on Android and in the iPhone Home-Screen app on iOS 16.4+, needs https) + the Android app's own notifications (checks every 15 min and whenever it opens).
+
+## Community reports ("It got me" / "It's fake")
+After any QR, screenshot or APK check, one tap adds a report (`POST /api/reports`). The next person who checks the same UPI ID, domain, phone number, screenshot or APK sees **"Reported by N people"** and a raised risk score (3+ reports → critical). Reports are anonymous: each device sends a random id that is hashed with a server salt (`APKXRAY_VOTE_SALT`), so one phone counts once. Official bank/government sites can't be reported. "It got me" opens the pre-filled complaint.
+
+## Pay safely: straight to your UPI app
+When a UPI QR checks out clean, PayGuard counts down 3 seconds and opens your UPI app (the last one you picked), or you tap Google Pay / PhonePe / Paytm / BHIM / any UPI app. Android uses `intent://` links targeted at each app; iPhone uses `tez://`, `phonepe://`, `paytmmp://`; desktop shows the payment QR to scan with a phone. Risky QRs never auto-open — paying needs an explicit "I know this person" tick.
+
+## Install on your phone (iPhone and Android)
+- **iPhone:** open the https link in Safari → Share → **Add to Home Screen**. PayGuard runs full-screen with camera scanning (PWA).
+- **Android:** Chrome → **Install app**, or install the native APK (`android-upi-intercept/`, built by GitHub Actions), which can also catch `upi://` links from other apps.
+- Camera and install need **https** (use the tunnel link), not `http://192.168…`.
+
+## One-tap complaint ("Report this scam")
+After any risky scan, **Report this scam** opens a short form (money lost? amount, UTR, bank, when, how it arrived, sender). The server **re-derives the evidence from the original scan** (it never trusts findings sent by the browser) and returns:
+- **Fields for cybercrime.gov.in** with a copy button each (category, sub-category, time, platform, amount, UTR, beneficiary, suspect identifiers, and a 200+ character description)
+- **What to say on the 1930 call**, in English / Hindi / Kannada, filled with the amount, UTR, beneficiary and time
+- **Next-step checklist**, urgent steps first (1930, block bank, uninstall app, portal, Chakshu, keep evidence)
+- **Evidence PDF** (A4): summary, suspect identifiers, transaction, the regenerated QR / file hashes, findings with evidence, statement, evidence fingerprint
+- A reference number (`PG-YYMMDD-XXXXXX`) and a private link `/c/<ref>#t=<token>` to come back
+
+Privacy: the access token is shown once and only its SHA-256 is stored; complaints auto-delete after 30 days (`APKXRAY_COMPLAINT_TTL_DAYS`) and the user can delete immediately. Scammer identifiers (UPI ID, domain, phone, app hash) are kept separately with no victim data, so the **next person who scans the same UPI ID / site / app sees "Already reported by N people"**.
+
+PayGuard cannot submit to the government portal for the user (there is no public filing API); it prepares everything so filing takes minutes.
+
+## What it actually analyses
+
 ```
-app/src/main/AndroidManifest.xml     upi:// intent-filter, <queries> for UPI apps, share targets, payguard://connect
-java/app/payguard/shield/
-  MainActivity.java      home: scan to pay, screenshot/APK/link checks, "set as UPI checker" status
-  CheckActivity.java     receives upi:// / shared content → server check → verdict screen → forward or block
-  UpiLauncher.java       finds UPI apps (excluding PayGuard), forwards the link, passes results back
-  LocalCheck.java        offline rules when the server is unreachable
-  Api.java               JSON + multipart calls to the PayGuard backend
-  Scanner.java           Google code scanner wrapper
-  SettingsActivity.java  server URL, connect-QR, warning language
-  Prefs.java / Ui.java   settings storage (incl. family device token), view helpers
-  Family.java            device registration, alert polling → notifications, 15-min JobScheduler
-  AlertJobService.java   the background job
-  WebActivity.java       /family and /trends pages with a JS bridge sharing the device token
-res/values{,-hi,-kn}/strings.xml     all text in 3 languages
+upload ─▶ zip safety checks (zip-bomb ratio, entry count, size) ─▶ unwrap .apks/.xapk split bundles
+       ─▶ androguard: binary AndroidManifest.xml → permissions, services, receivers, intent filters, SDK levels
+       ─▶ custom DEX reader: every string constant + every referenced API method, all classes*.dex (ms, not seconds)
+       ─▶ resources.arsc strings + asset HTML/JS → fake CVV/PIN forms
+       ─▶ signing cert: unsigned / debug key / key age;  native libs → packers;  assets → hidden APK/DEX payloads
+       ─▶ 22 rules → score 0-100 → verdict + findings (en/hi/kn) ─▶ cached by SHA-256 (APK bytes are deleted)
 ```
+
+**Key rules** (`app/analyzer/rules.py`):
+
+| Rule | Trigger | Why it matters |
+|---|---|---|
+| Banking-trojan triad | SMS read/receive **+** Accessibility service **+** `SYSTEM_ALERT_WINDOW` | Read OTP, control screen, overlay fake login |
+| OTP theft | SMS + internet, stronger if code calls `SmsMessage.createFromPdu` / queries `content://sms` | Classic Indian SMS-stealer |
+| Telegram exfiltration | `api.telegram.org/bot…` or bot token in code | Most common exfil channel for Indian SMS stealers |
+| Call forwarding | `CALL_PHONE` + `*21*`/`**21*`/`*401*` codes | Hijacks bank verification calls |
+| Bank target list | ≥2 Indian bank app package names in code | Trojan decides when to show the overlay |
+| Credential form | ≥3 of CVV / ATM PIN / card number / MPIN… in the app's text | Built-in phishing page |
+| Scam lure mismatch | Name/file says courier, bill, KYC, challan, tax refund… but asks for SMS/accessibility | Real ones are never sent as APK files |
+| Brand impersonation | Name says SBI/HDFC/PhonePe/WhatsApp… but package ID isn't the official one | |
+| + Notification listener, device admin, hidden icon, dropper, default-SMS takeover, legacy targetSdk (<23 = no permission prompts), packer, raw-IP / throw-away-domain servers, debug / fresh / missing signature, persistence, screen recording | | |
+
+Verdict: ≥70 **Do NOT install** · 40-69 **Very suspicious** · 15-39 **Be careful** · <15 **No known danger signs** (any critical finding forces ≥45).
+
+## API
+
+| Method | Path | |
+|---|---|---|
+| POST | `/api/scan` | multipart field `file` → full report JSON |
+| GET | `/api/report/{sha256}` | cached report (also the shareable page `/r/{sha256}`) |
+| POST | `/api/explain` | `{"sha256", "lang": "en|hi|kn"}` → WhatsApp-ready message |
+| GET | `/api/stats` | files scanned, verdict counts, most-seen threats |
+| POST | `/api/message` | `{"text"}` → scam message report |
+| POST | `/api/reports` | `{"kind": "qr|msg|shot|apk", "payload"|"id", "reason": "got_me|fake|not_scam", "voter"}` |
+| GET | `/api/trends` · `/api/lookup?q=` | public trends · has this UPI ID / number / website been reported? |
+| POST/GET | `/api/family/*` | device, invite, join, me, alerts, event (pay_anyway), push, test — see `app/main.py` |
+| GET | `/api/health` | |
+
+"Seen N times" is real: if many people upload the same file hash, the report says the file is circulating.
+
+## Honest limitations (say these to judges before they ask)
+- Static analysis only. Code downloaded *after* install, or hidden inside commercial packers, is not visible — packers are flagged instead.
+- Permission-combination analysis can flag genuine apps that need SMS/accessibility (e.g. an SMS app or a screen reader). That's why every finding shows its evidence, and why the UI says "low risk ≠ safe".
+- The trojan in `samples/` is an inert fixture we built. For real-world validation, run the scanner on Android SMS-stealer samples from MalwareBazaar **inside a VM**.
+
+## Project layout
+```
+app/main.py              FastAPI server, upload streaming, worker pool, rate limit, VirusTotal
+app/store.py             SQLite report cache + "seen N times"
+app/explain.py           Family message (template or Claude)
+app/analyzer/core.py     Pipeline: zip → manifest → dex → cert → facts
+app/analyzer/dexscan.py  Fast DEX string/method-reference reader
+app/analyzer/rules.py    Rules, scoring, verdicts, EN/HI/KN text
+app/analyzer/knowledge.py Permissions, API signatures, lure words, bank packages, packers
+app/message/analyzer.py  Scam message checker (scripts, actions, pressure, entity extraction)
+app/trends.py            Trends aggregation, public-listing rules, masking, lookup
+app/family/              Family guardian mode (devices, codes, links, alerts) + push.py (Web Push, no extra deps)
+scripts/seed_demo.py     Labelled demo data for the trends page
+app/auth/                Accounts: db.py (SQLite or Postgres), passwords.py (scrypt), service.py, api.py, mailer.py, emails.py (EN/HI/KN)
+static/                  Web app (vanilla JS, mobile-first, EN/हिंदी/ಕನ್ನಡ, read-aloud); trends.html, family.html, admin.html
+static/landing.*         Landing page (/): hooded-figure scroll story, warp canvas, live counters
+static/login.*, account.*, pgauth.js   Sign-in terminal, account page, shared account helpers + user menu
+static/cyber.css, theme.css            Black/red/green/blue theme (theme.css restyles the scanner pages without touching their logic)
+tests/  samples/
+```
+
+## Hackathon: prior work vs. work done during the event
+See [HACKATHON.md](HACKATHON.md). Git tag `pre-hackathon` marks the code that existed before the final hackathon.
+
+## License and credits
+PayGuard is open source under the [MIT License](LICENSE). Third-party libraries, programs, fonts and the three
+open-source sample apps in `samples/` keep their own licenses and are credited in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Parts of the code were written with an AI coding assistant
+(Anthropic's Claude); the team reviewed, tested and is responsible for it.

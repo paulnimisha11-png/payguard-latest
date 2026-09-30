@@ -169,6 +169,7 @@
 
   /* ------------------------------------------------------------------ scenes */
   const hero = $("#hero"), scan = $("#scan"), nav = $("#lnav"), hood = $("#hood-wrap");
+  if (hood && window.PGHood) window.PGHood.mount(hood, { laptop: true });
   const stages = $$(".hero-copy .stage");
   const icpts = $$(".icpt");
   const steps = $$("#scan [data-at]");

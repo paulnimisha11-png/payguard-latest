@@ -53,68 +53,7 @@
   <section class="scene hero" id="hero">
     <div class="sticky">
       <div class="hood-wrap" id="hood-wrap">
-        <svg class="hood" viewBox="0 0 600 720" aria-hidden="true">
-          <defs>
-            <radialGradient id="void" cx="50%" cy="45%" r="55%">
-              <stop offset="0" stop-color="#000"/><stop offset=".75" stop-color="#010102"/><stop offset="1" stop-color="#0b0b10"/>
-            </radialGradient>
-            <linearGradient id="cloth" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#1b1c24"/><stop offset=".55" stop-color="#101117"/><stop offset="1" stop-color="#07070a"/>
-            </linearGradient>
-            <linearGradient id="clothSide" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#000" stop-opacity=".55"/><stop offset=".3" stop-color="#000" stop-opacity="0"/>
-              <stop offset=".7" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/>
-            </linearGradient>
-            <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="var(--rim-a)"/><stop offset="1" stop-color="var(--rim-b)"/>
-            </linearGradient>
-            <linearGradient id="lid" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#15161d"/><stop offset="1" stop-color="#050506"/>
-            </linearGradient>
-            <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-            <filter id="softglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
-          </defs>
-          <!-- aura behind the head -->
-          <ellipse class="aura" cx="300" cy="270" rx="210" ry="230" filter="url(#softglow)"/>
-          <!-- shoulders / torso -->
-          <path class="torso" d="M20 720 C 34 612, 86 540, 168 506 C 214 487, 252 478, 300 478 C 348 478, 386 487, 432 506 C 514 540, 566 612, 580 720 Z" fill="url(#cloth)"/>
-          <path d="M20 720 C 34 612, 86 540, 168 506 C 214 487, 252 478, 300 478 C 348 478, 386 487, 432 506 C 514 540, 566 612, 580 720 Z" fill="url(#clothSide)"/>
-          <!-- hood -->
-          <path class="hood-shell" d="M118 548 C 114 432, 138 330, 184 244 C 220 174, 262 110, 300 90 C 338 110, 380 174, 416 244 C 462 330, 486 432, 482 548 C 430 520, 370 505, 300 505 C 230 505, 170 520, 118 548 Z" fill="url(#cloth)"/>
-          <path d="M118 548 C 114 432, 138 330, 184 244 C 220 174, 262 110, 300 90 C 338 110, 380 174, 416 244 C 462 330, 486 432, 482 548 C 430 520, 370 505, 300 505 C 230 505, 170 520, 118 548 Z" fill="url(#clothSide)"/>
-          <!-- fabric folds -->
-          <g class="folds" fill="none" stroke="#2a2b36" stroke-width="2" stroke-linecap="round" opacity=".7">
-            <path d="M190 262 C 176 320, 170 390, 176 470"/><path d="M410 262 C 424 320, 430 390, 424 470"/>
-            <path d="M232 160 C 214 190, 200 222, 194 250"/><path d="M368 160 C 386 190, 400 222, 406 250"/>
-            <path d="M150 520 C 190 500, 236 492, 262 492"/><path d="M450 520 C 410 500, 364 492, 338 492"/>
-          </g>
-          <!-- inner rim of the hood opening -->
-          <path d="M300 160 C 240 164, 196 226, 192 300 C 188 382, 232 448, 300 462 C 368 448, 412 382, 408 300 C 404 226, 360 164, 300 160 Z" fill="#191a22"/>
-          <!-- the face: nothing -->
-          <path class="face" d="M300 178 C 250 181, 212 236, 208 302 C 205 372, 242 428, 300 442 C 358 428, 395 372, 392 302 C 388 236, 350 181, 300 178 Z" fill="url(#void)"/>
-          <!-- eyes, only when he notices you -->
-          <g class="eyes" filter="url(#glow)">
-            <path d="M252 306 Q 268 298 284 306 Q 268 311 252 306 Z"/><path d="M316 306 Q 332 298 348 306 Q 332 311 316 306 Z"/>
-          </g>
-          <!-- drawstrings -->
-          <g fill="none" stroke="#6d7080" stroke-width="3" stroke-linecap="round" opacity=".8">
-            <path d="M276 452 C 274 480, 271 508, 269 548"/><path d="M324 452 C 326 480, 329 508, 331 548"/>
-          </g>
-          <rect x="265" y="546" width="8" height="16" rx="3" fill="#9ca0b0"/><rect x="327" y="546" width="8" height="16" rx="3" fill="#9ca0b0"/>
-          <!-- rim light -->
-          <g class="rimlight" fill="none" stroke="url(#rim)" stroke-width="3" filter="url(#glow)">
-            <path d="M118 548 C 114 432, 138 330, 184 244 C 220 174, 262 110, 300 90 C 338 110, 380 174, 416 244 C 462 330, 486 432, 482 548"/>
-            <path d="M20 720 C 34 612, 86 540, 168 506"/><path d="M580 720 C 566 612, 514 540, 432 506"/>
-          </g>
-          <!-- laptop, lid facing us -->
-          <path class="laptop" d="M140 578 L460 578 L482 720 L118 720 Z" fill="url(#lid)"/>
-          <path d="M140 578 L460 578" stroke="url(#rim)" stroke-width="2" opacity=".8"/>
-          <g class="lid-logo" transform="translate(300 648)" filter="url(#glow)">
-            <path d="M0 -26 -20 -18v13c0 12.5 8.5 22 20 25 11.5-3 20-12.5 20-25v-13z"/>
-          </g>
-        </svg>
+        <!-- the figure is drawn by /hood.js -->
       </div>
 
       <!-- floating intercepts: what reaches people's phones -->
@@ -249,6 +188,7 @@
 </footer>
 
 <script src="/vendor/lenis.min.js"></script>
+<script src="/hood.js"></script>
 <script src="/landing.js"></script>
 </body>
 </html>
