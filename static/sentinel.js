@@ -171,7 +171,9 @@
       const lvl = r.verdict.level;
       const state = LEVEL[lvl] || "warn";
       const title = lvl === "caution" ? tx("caution") : tx(state);
-      const sub = `${KIND[r.kind] || "App file"} · ${tx("risk")} ${r.verdict.score}/100`;
+      const ml = r.ml && r.ml.status === "ok" ? r.ml : null;
+      const sub = ml ? `${KIND[r.kind]} · ML scam probability ${Math.round(ml.scam_probability_percent)}%`
+        : `${KIND[r.kind] || "App file"} · ${tx("risk")} ${r.verdict.score}/100`;
       resultS.set(state, title, sub, tx("kick"));
     },
   };

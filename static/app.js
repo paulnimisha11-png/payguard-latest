@@ -436,6 +436,45 @@
     window.renderMemory && window.renderMemory(r);
     renderGuard(r);
     renderAI(r);
+    renderML(r);
+  }
+
+  // UPI QR: the machine-learning prediction (calibrated scam probability). It is the primary verdict; PayGuard's
+  // hard-evidence rules can only raise it (safety floor), and the model's own estimate is always shown as-is.
+  const GUARD_TEXT = {
+    INVALID_UPI_FORMAT: "the link is not a valid UPI format", AUTOPAY_MANDATE: "it sets up automatic repeated payments",
+    REPORTED_BY_USERS: "people have reported this UPI ID", UPI_MUTATION: "the UPI ID imitates one reported as a scam",
+  };
+  function renderML(r) {
+    const card = $("#mlcard");
+    const ml = r.kind === "qr" ? r.ml : null;
+    if (!ml || ml.status === "not_applicable") { card.hidden = true; return; }
+    card.hidden = false;
+    if (ml.status !== "ok") {
+      card.className = "card mlcard";
+      card.innerHTML = `<div class="ml-head"><span class="ml-badge">ML scam prediction</span></div>
+        <p class="dim">The ML model isn't available right now, so this result comes from PayGuard's rules.</p>`;
+      return;
+    }
+    const scam = ml.prediction === "Scam";
+    const pct = ml.scam_probability_percent;
+    const shown = pct < 1.5 ? "about 1" : pct > 98.5 ? "about 99" : Math.round(pct);
+    const toward = (ml.signals || []).filter((x) => (x.direction === "scam") === scam);
+    const sig = (toward.length ? toward : ml.signals || []).slice(0, 3);
+    const guard = (ml.safety_guard || []).map((g) => GUARD_TEXT[g] || g.toLowerCase().replace(/_/g, " "));
+    card.className = "card mlcard " + (scam ? "is-scam" : "is-legit");
+    card.innerHTML = `
+      <div class="ml-head"><span class="ml-badge">ML scam prediction</span>${ml.prototype ? `<span class="ml-proto" title="${esc(ml.trained_on)}">prototype model</span>` : ""}</div>
+      <div class="ml-main">
+        <div class="ml-pred"><b>${scam ? "Scam" : "Legitimate"}</b><span>model prediction</span></div>
+        <div class="ml-prob">
+          <div class="ml-num"><b>${shown}%</b> estimated scam probability</div>
+          <div class="ml-meter" role="img" aria-label="Estimated scam probability ${shown} percent"><i style="width:${Math.min(99, Math.max(1, pct))}%"></i><em style="left:${ml.threshold * 100}%"></em></div>
+        </div>
+      </div>
+      ${sig.length ? `<p class="ml-why"><b>What moved the estimate:</b></p><ul class="ml-sig">${sig.map((x) => `<li class="${x.direction}">${esc(x.label)} <span>${x.direction === "scam" ? "▲ towards scam" : "▼ towards legitimate"}</span></li>`).join("")}</ul>` : ""}
+      ${guard.length ? `<p class="ml-guard">PayGuard's safety rules raised the result above the model's estimate because ${esc(guard.join(" and "))}.</p>` : ""}
+      <p class="ml-note">This probability is a machine-learning estimate, not a certainty. Always check the name your UPI app shows before entering your PIN.${ml.prototype ? " Prototype: trained on example data, not yet on real reports." : ""}</p>`;
   }
 
   // APK only: the optional Gemini explanation. It explains the rule findings; the verdict and score above come from

@@ -1,0 +1,4 @@
+# Training the UPI scam model only (scripts/train_upi_model.py). NOT needed on the server:
+# the trained model is exported to app/ml/upi_model.json and evaluated in pure Python.
+-r requirements.txt
+scikit-learn>=1.5

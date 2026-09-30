@@ -19,6 +19,7 @@ license. Nothing here is copied into our source files except where marked "bundl
 | [pytesseract](https://github.com/madmaze/pytesseract) | Apache-2.0 | Fallback OCR wrapper |
 | [ReportLab](https://www.reportlab.com/opensource/) | BSD | Evidence PDF for complaints |
 | [qrcode](https://github.com/lincolnloop/python-qrcode) | BSD | Payment / join QR images |
+| [scikit-learn](https://scikit-learn.org) | BSD-3-Clause | Training the UPI scam model only (`requirements-ml.txt`); not used on the server |
 | [cryptography](https://github.com/pyca/cryptography) | Apache-2.0 OR BSD-3-Clause | Web Push encryption and signing |
 | [psycopg 3 (psycopg[binary])](https://github.com/psycopg/psycopg) | LGPL-3.0-only | Postgres driver for accounts (used as an unmodified library) |
 | [clerk-backend-api](https://github.com/clerk/clerk-sdk-python) (with [PyJWT](https://github.com/jpadilla/pyjwt)) | MIT | Verifying Clerk session tokens, Clerk Backend API |

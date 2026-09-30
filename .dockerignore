@@ -9,3 +9,4 @@ android-upi-intercept/
 .env
 .env.*
 .venv*
+app/ml/data/

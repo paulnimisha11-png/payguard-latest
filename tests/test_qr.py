@@ -127,12 +127,13 @@ def test_backslash_upi_not_safe_via_text_and_qr_image():
     bad = "upi:\\pay?pa=merchant123@upi&pn=ABC%20Store&am=5000"
     with TestClient(app) as c:
         typed = c.post("/api/qr/text", json={"text": bad}).json()
-        assert typed["verdict"]["level"] == "suspicious" and typed["details"]["upi_format"]["valid"] is False
+        assert typed["verdict"]["level"] in ("suspicious", "danger") and typed["details"]["upi_format"]["valid"] is False
+        assert typed["verdict"]["headline"]["en"] == "Invalid UPI format — don't pay"
         buf = io.BytesIO()
         qrcode.make(bad).save(buf, format="PNG")
         scanned = c.post("/api/qr/image", files={"file": ("qr.png", buf.getvalue(), "image/png")}).json()
         rep = scanned["results"][0] if "results" in scanned else scanned
-        assert rep["payload"] == bad and rep["verdict"]["level"] == "suspicious"
+        assert rep["payload"] == bad and rep["verdict"]["level"] in ("suspicious", "danger")
         good = c.post("/api/qr/text", json={"text": VALID_UPI[0]}).json()
         assert good["verdict"]["level"] == "low" and good["details"]["upi_format"]["valid"] is True
 

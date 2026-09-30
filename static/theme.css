@@ -168,3 +168,31 @@ html[lang="hi"] .cyber h1, html[lang="kn"] .cyber h1, html[lang="ta"] .cyber h1,
 .ai-act { margin: 14px 0 0; padding: 12px 14px; border-radius: 12px; background: rgba(47, 139, 255, .08); border: 1px solid rgba(47, 139, 255, .25); }
 .ai-note { margin: 10px 0 0; font-size: .76rem; }
 .ai-off { margin: 0; }
+
+/* UPI QR: ML scam prediction card (app.js renderML) */
+.mlcard { position: relative; overflow: hidden; border-color: rgba(47, 139, 255, .35) !important; }
+.mlcard::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--c-blue); }
+.mlcard.is-scam::before { background: var(--c-red); box-shadow: 0 0 12px var(--c-red); }
+.mlcard.is-legit::before { background: var(--c-green); box-shadow: 0 0 12px var(--c-green); }
+.ml-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.ml-badge { display: inline-flex; align-items: center; gap: 8px; font: 600 .7rem var(--f-mono); letter-spacing: .18em; text-transform: uppercase; color: var(--c-blue2); }
+.ml-badge::before { content: ""; width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: var(--c-blue); box-shadow: 0 0 10px var(--c-blue); }
+.ml-proto { font: 600 .66rem var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--c-amber); border: 1px solid rgba(255, 176, 32, .45); border-radius: 999px; padding: 2px 8px; }
+.ml-main { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center; }
+.ml-pred b { display: block; font: 900 1.6rem var(--f-display), var(--font); letter-spacing: .02em; }
+.ml-pred span { font-size: .78rem; color: var(--c-dim); }
+.is-scam .ml-pred b { color: var(--c-red); text-shadow: 0 0 18px var(--c-red-glow); }
+.is-legit .ml-pred b { color: var(--c-green); text-shadow: 0 0 18px var(--c-green-glow); }
+.ml-num { font-size: .92rem; color: #c9cbd8; margin-bottom: 8px; }
+.ml-num b { font: 800 1.35rem var(--f-display), var(--font); color: #fff; margin-right: 4px; }
+.ml-meter { position: relative; height: 10px; border-radius: 99px; background: rgba(255, 255, 255, .07); }
+.ml-meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: linear-gradient(90deg, var(--c-green), var(--c-amber) 55%, var(--c-red)); transition: width 1s var(--ease-out); }
+.ml-meter em { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #fff; opacity: .6; }
+.ml-why { margin: 16px 0 6px; font-size: .88rem; }
+.ml-sig { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ml-sig li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 10px; background: rgba(0, 0, 0, .3); font-size: .88rem; color: #d3d5df; }
+.ml-sig li span { font: 600 .72rem var(--f-mono); white-space: nowrap; }
+.ml-sig li.scam span { color: var(--c-red2); } .ml-sig li.legitimate span { color: var(--c-green); }
+.ml-guard { margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255, 176, 32, .35); background: rgba(255, 176, 32, .07); font-size: .86rem; color: #ffd98a; }
+.ml-note { margin: 12px 0 0; font-size: .78rem; color: var(--c-dim); }
+@media (max-width: 520px) { .ml-main { grid-template-columns: 1fr; gap: 10px; } .ml-sig li { flex-direction: column; gap: 2px; } }

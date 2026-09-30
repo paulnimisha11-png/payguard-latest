@@ -97,6 +97,26 @@ Set-up on Render (about 10 minutes):
 
 Note: scan reports, community reports, trends and family links still use the local SQLite file, so on Render's free plan they reset when the service restarts.
 
+## ML scam prediction for UPI QR codes (prototype)
+For UPI payment QR codes and links, the verdict comes from a **machine-learning model** that returns a calibrated
+estimated scam probability. PayGuard's rules still explain the result and act as a safety floor.
+
+**Flow:** QR image / camera / typed link → existing decoder and UPI parser (`app/qr/analyzer.py`, incl. strict format check)
+→ community reports and look-alike matching → `app/ml/features.py` (36 features) → gradient-boosted trees
+(`app/ml/upi_model.json`) → isotonic/Platt calibration → `scam_probability` (0–1), `scam_probability_percent` (0–100),
+`prediction` (Scam if ≥ 0.5, else Legitimate) → verdict. The API returns it as `ml` on `/api/qr/text` and `/api/qr/image`;
+the old rule result is kept as `rule_verdict`.
+
+- **Safety floor:** the model can't go below what hard evidence requires: a malformed UPI link, a critical rule finding
+  (e.g. hidden AutoPay), real community reports, or a look-alike of a reported scam ID. The model's own estimate is always shown.
+- **Prototype:** there isn't enough real labelled data yet, so it is trained on a documented **synthetic** dataset
+  (`scripts/make_upi_dataset.py`, 18 legitimate/scam scenarios, hard cases and 2% label noise). Test-set results on that data:
+  precision 0.976, recall 0.9569, F1 0.9663, ROC-AUC 0.9814, Brier 0.0227, ECE 0.0128.
+  These show the model learned those scenarios, **not real-world accuracy**. Details: [`app/ml/MODEL_CARD.md`](app/ml/MODEL_CARD.md).
+- **Replace the data:** any CSV with `payload,label` (1 = scam, 0 = legitimate; optional `reports,got_me,disputes,lookalike`):
+  `pip install -r requirements-ml.txt && python scripts/train_upi_model.py --no-synthetic --data my_labels.csv`.
+- No extra runtime dependency or memory: scikit-learn is used only for training; serving adds < 1 MB and ~3 ms per QR.
+
 ## Fake payment screenshot detector
 Third tab on the website (and in the Android app). Upload the "I've paid" screenshot someone showed you:
 - **File evidence:** photo-editor software in EXIF/PNG/XMP, edit history, photo-of-a-screen, odd crops
@@ -207,6 +227,8 @@ app/trends.py            Trends aggregation, public-listing rules, masking, look
 app/family/              Family guardian mode (devices, codes, links, alerts) + push.py (Web Push, no extra deps)
 scripts/seed_demo.py     Labelled demo data for the trends page
 app/auth/                Accounts: clerk.py (Clerk session tokens + Backend API), db.py (SQLite or Postgres), service.py, api.py, mailer.py, emails.py (EN/HI/KN)
+app/ml/                  UPI scam model: features.py, upi_model.py (runtime), upi_model.json (trained), MODEL_CARD.md, data/
+scripts/make_upi_dataset.py, scripts/train_upi_model.py   Prototype dataset + training/evaluation/calibration
 static/                  Web app (vanilla JS, mobile-first, EN/हिंदी/ಕನ್ನಡ, read-aloud); trends.html, family.html, admin.html
 static/landing.*         Landing page (/): hooded-figure scroll story, warp canvas, live counters
 static/login.*, account.*, pgauth.js   Sign-in terminal, account page, shared account helpers + user menu

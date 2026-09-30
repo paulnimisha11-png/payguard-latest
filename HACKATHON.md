@@ -20,6 +20,7 @@ one-tap complaints, the trends page, family guardian mode and the Android UPI in
 | Account page | Profile, email alerts toggle, password, devices, history, delete | `static/account.*` |
 | Verdict sentinel | The hooded figure appears on every scanner's result: blue with a scanning beam while checking, then red light rays and glowing eyes for a scam, yellow for suspicious, green for safe (APK, QR/UPI, screenshot and message checks) | `static/hood.js`, `static/sentinel.*` |
 | APK AI analyst | After the rule-based APK analysis, Gemini (`gemini-3.8-flash`) gets the extracted facts + findings + score (never the file) and returns a structured explanation shown under the verdict. Rules stay the only source of the score; scans work unchanged if the AI is off or down | `app/reasoning.py`, `static/app.js`, `tests/test_reasoning.py` |
+| UPI ML scam model (prototype) | Gradient-boosted trees on 36 features from the existing UPI parser, community history and look-alike matching; calibrated scam probability is the primary UPI QR verdict, with PayGuard's hard-evidence rules as a safety floor. Trained on a documented synthetic dataset (replaceable); honest model card | `app/ml/`, `scripts/make_upi_dataset.py`, `scripts/train_upi_model.py`, `tests/test_qr_ml.py` |
 | App theme | Black / red / green / blue theme for the scanner, radar, family and admin pages; user menu on every page | `static/cyber.css`, `static/theme.css` |
 
 ## How to check it

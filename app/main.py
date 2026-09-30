@@ -41,6 +41,7 @@ from .complaints import builder as cb
 from .screenshot.analyzer import analyze_screenshot
 from .message import analyze_message
 from . import auth, family, reasoning, trends
+from .ml import upi_model as qr_ml
 from .complaints.community import apply_reports
 from .complaints.pdf import render as render_pdf
 
@@ -127,6 +128,8 @@ def _after_check(request: Request, rep: dict) -> dict:
     """Every check: add community reports, count it for the trends page, alert family guardians, and save it to the
     signed-in user's history (kind, verdict and a masked identifier only; never message text or images)."""
     rep = apply_reports(rep)
+    if rep.get("kind") == "qr":
+        rep = qr_ml.apply(rep)            # UPI QRs: the calibrated ML probability is the primary verdict
     trends.record(rep)
     cur = auth.current(request)
     if cur:
@@ -251,9 +254,9 @@ async def qr_image(request: Request, file: UploadFile = File(...)):
         raise HTTPException(504, "Decoding the image took too long.")
     if not codes:
         raise HTTPException(422, "No QR code found in this image. Try a sharper, closer screenshot with the whole QR visible.")
-    reports = [apply_reports(analyze_payload(c)) for c in codes[:5]]
+    reports = [qr_ml.apply(apply_reports(analyze_payload(c))) for c in codes[:5]]
     reports.sort(key=lambda r: -r["verdict"]["score"])  # worst first
-    worst = _after_check(request, reports[0])
+    worst = _after_check(request, analyze_payload(reports[0]["payload"]))
     return {**worst, "all_codes": len(codes), "others": reports[1:]}
 
 
@@ -537,7 +540,8 @@ async def stats():
 async def health():
     from .screenshot.analyzer import HAS_OCR, OCR_ENGINE
     return {"ok": True, "engine": ENGINE_VERSION, "llm": bool(os.environ.get("ANTHROPIC_API_KEY")),
-            "apk_reasoning": reasoning.model() if reasoning.enabled() else None, "apk_reasoning_last": reasoning.LAST or None,
+            "apk_reasoning": reasoning.model() if reasoning.enabled() else None,
+            "qr_ml_model": (lambda m: f"{m['model']['type']} {m['version']}" + (" (prototype)" if m.get("prototype") else ""))(qr_ml.load()) if qr_ml.load() else None, "apk_reasoning_last": reasoning.LAST or None,
             "virustotal": bool(VT_KEY), "ocr": HAS_OCR, "ocr_engine": OCR_ENGINE, "android_apk": os.path.isfile(APK_PATH) or bool(APK_URL), "service": "payguard",
             "push_recent": [f"{h}:{st}" for h, st in family.PUSH_LOG[-5:]], "tts": "espeak-ng" if ESPEAK else None, **auth.health()}
 
