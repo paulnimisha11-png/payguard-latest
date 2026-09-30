@@ -10,10 +10,10 @@ services:
         value: "60"
       - key: APKXRAY_WORKERS      # one APK analysis process: leaves memory for RapidOCR on the 512 MB free plan
         value: "1"
-      - key: OCR_ENGINE          # RapidOCR = accurate engine (18/18 on our receipt tests); "tesseract" = low-memory fallback
-        value: "rapidocr"
+      - key: OCR_ENGINE          # Tesseract: ~1 s per screenshot. RapidOCR is ~4x slower and times out (504) on the free plan's shared CPU
+        value: "tesseract"
       - key: APKXRAY_OCR_ENGINE
-        value: "rapidocr"
+        value: "tesseract"
       - key: OMP_NUM_THREADS
         value: "1"
       - key: OPENBLAS_NUM_THREADS
