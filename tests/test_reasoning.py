@@ -130,3 +130,33 @@ def test_model_is_configurable(monkeypatch):
     rep = {"app": {}, "verdict": {"level": "low", "score": 0, "headline": {"en": "Low"}}, "findings": []}
     res = asyncio.run(reasoning.analyze(rep))
     assert res["status"] == "ok" and res["model"] == "gemini-other-flash" and "gemini-other-flash" in str(seen[0].url)
+
+
+def test_gemini3_settings_and_fallback_when_a_field_is_rejected():
+    bodies = []
+
+    def h(req):
+        body = json.loads(req.content)
+        bodies.append(body)
+        if "thinkingConfig" in body["generationConfig"]:         # pretend this model rejects a field
+            return httpx.Response(400, json={"error": {"message": "Invalid JSON payload: Unknown name thinkingConfig"}})
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": json.dumps(REPLY)}]}}]})
+    gemini(h)
+    rep = {"app": {}, "verdict": {"level": "danger", "score": 90, "headline": {"en": "x"}}, "findings": []}
+    res = asyncio.run(reasoning.analyze(rep))
+    first, second = bodies
+    assert first["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "low"}
+    assert "temperature" not in first["generationConfig"] and "maxOutputTokens" not in first["generationConfig"]
+    assert "risk_summary" in second["contents"][0]["parts"][0]["text"]               # schema moved into the prompt
+    assert res["status"] == "ok" and res["risk_summary"] == REPLY["risk_summary"]
+
+
+def test_failure_reason_is_visible_in_health():
+    gemini(lambda r: httpx.Response(403, json={"error": {"message": "API key not valid. Please pass a valid API key."}}))
+    rep = {"app": {}, "verdict": {"level": "low", "score": 0, "headline": {"en": "x"}}, "findings": []}
+    assert asyncio.run(reasoning.analyze(rep))["reason"] == "http 403"
+    with TestClient(app) as c:
+        last = c.get("/api/health").json()["apk_reasoning_last"]
+    assert last["status"] == "error" and "API key not valid" in last["detail"] and "test-key" not in json.dumps(last)
+    gemini(lambda r: httpx.Response(200, json={"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": '{"risk_sum'}]}}]}))
+    assert asyncio.run(reasoning.analyze(rep))["reason"] == "unreadable reply (MAX_TOKENS)"

@@ -9,7 +9,7 @@ so a scan never fails or slows down beyond GEMINI_TIMEOUT because of this layer.
 Environment:
   GEMINI_API_KEY   required to turn the layer on (never hard-coded, never logged)
   GEMINI_MODEL     default "gemini-3.8-flash"
-  GEMINI_TIMEOUT   seconds, default 12
+  GEMINI_TIMEOUT   seconds, default 25
 """
 from __future__ import annotations
 
@@ -133,36 +133,78 @@ def _parse(text: str) -> dict | None:
 
 # ------------------------------------------------------------------ the call
 
+LAST: dict = {}          # last call's outcome, shown in /api/health for debugging (never contains the key)
+
+
+def _record(res: dict, detail: str = "") -> dict:
+    LAST.clear()
+    LAST.update({"status": res["status"], "reason": res.get("reason"), "detail": detail[:300] or None,
+                 "model": model(), "at": int(time.time())})
+    if res["status"] != "ok":
+        print(f"[gemini] {res['status']} {res.get('reason') or ''} {detail[:300]}", flush=True)   # shows in Render logs
+    return res
+
+
+def _bodies(rep: dict) -> list[dict]:
+    """Full request first; if Google rejects a field (HTTP 400), a minimal one with the schema in the prompt."""
+    facts = "APK_FACTS = " + json.dumps(build_facts(rep), ensure_ascii=False)
+    full = {
+        "systemInstruction": {"parts": [{"text": SYSTEM}]},
+        "contents": [{"role": "user", "parts": [{"text": facts}]}],
+        # Gemini 3: keep the default temperature (Google warns lower values can loop); thinking tokens share the
+        # output budget, so no tight maxOutputTokens; low thinking keeps it fast.
+        "generationConfig": {"responseMimeType": "application/json", "responseJsonSchema": SCHEMA,
+                             "thinkingConfig": {"thinkingLevel": "low"}},
+    }
+    minimal = {
+        "contents": [{"role": "user", "parts": [{"text": SYSTEM + "\n\nReply with ONLY a JSON object with exactly these keys: "
+                                                  + json.dumps(SCHEMA["properties"]) + "\n\n" + facts}]}],
+        "generationConfig": {"responseMimeType": "application/json"},
+    }
+    return [full, minimal]
+
+
+def _google_error(r: httpx.Response) -> str:
+    try:
+        return str((r.json().get("error") or {}).get("message", ""))[:300]
+    except Exception:
+        return r.text[:300]
+
+
 async def analyze(rep: dict) -> dict:
     """Returns {"status": "ok", "model", "ms", **FIELDS} or {"status": "disabled"|"timeout"|"error", ...}.
     Never raises."""
-    key = os.environ.get("GEMINI_API_KEY")
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not key:
         return {"status": "disabled"}
     started = time.monotonic()
-    body = {
-        "systemInstruction": {"parts": [{"text": SYSTEM}]},
-        "contents": [{"role": "user", "parts": [{"text": "APK_FACTS = " + json.dumps(build_facts(rep), ensure_ascii=False)}]}],
-        "generationConfig": {"responseMimeType": "application/json", "responseJsonSchema": SCHEMA,
-                             "temperature": 0.2, "maxOutputTokens": 1200},
-    }
     try:
-        timeout = float(os.environ.get("GEMINI_TIMEOUT", "12"))
+        timeout = float(os.environ.get("GEMINI_TIMEOUT", "25"))
     except ValueError:
-        timeout = 12.0
+        timeout = 25.0
+    url = ENDPOINT.format(model=model())
+    headers = {"x-goog-api-key": key, "content-type": "application/json"}
+    detail = ""
     try:
         async with httpx.AsyncClient(timeout=timeout, transport=_transport) as c:
-            r = await c.post(ENDPOINT.format(model=model()), json=body,
-                             headers={"x-goog-api-key": key, "content-type": "application/json"})
-        if r.status_code != 200:
-            return {"status": "error", "reason": f"http {r.status_code}", "model": model()}
-        parts = (((r.json().get("candidates") or [{}])[0].get("content") or {}).get("parts") or [])
-        text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
-        result = _parse(text)
-        if not result:
-            return {"status": "error", "reason": "unreadable reply", "model": model()}
-        return {"status": "ok", "model": model(), "ms": int((time.monotonic() - started) * 1000), **result}
+            for i, body in enumerate(_bodies(rep)):
+                r = await c.post(url, json=body, headers=headers)
+                if r.status_code == 400 and i == 0:            # unsupported field: try the minimal request once
+                    detail = _google_error(r)
+                    continue
+                if r.status_code != 200:
+                    return _record({"status": "error", "reason": f"http {r.status_code}", "model": model()}, _google_error(r))
+                data = r.json()
+                cand = (data.get("candidates") or [{}])[0]
+                parts = (cand.get("content") or {}).get("parts") or []
+                text = "".join(p.get("text", "") for p in parts if not p.get("thought"))
+                result = _parse(text)
+                if not result:
+                    why = cand.get("finishReason") or (data.get("promptFeedback") or {}).get("blockReason") or "no JSON"
+                    return _record({"status": "error", "reason": f"unreadable reply ({why})", "model": model()}, text[:200])
+                return _record({"status": "ok", "model": model(), "ms": int((time.monotonic() - started) * 1000), **result})
+        return _record({"status": "error", "reason": "http 400", "model": model()}, detail)
     except httpx.TimeoutException:
-        return {"status": "timeout", "model": model()}
+        return _record({"status": "timeout", "model": model()}, f"no reply within {timeout:g}s")
     except Exception as e:                                          # network down, bad JSON envelope, ...
-        return {"status": "error", "reason": type(e).__name__, "model": model()}
+        return _record({"status": "error", "reason": type(e).__name__, "model": model()}, str(e)[:200])
