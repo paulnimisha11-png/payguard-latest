@@ -537,7 +537,7 @@ async def stats():
 async def health():
     from .screenshot.analyzer import HAS_OCR, OCR_ENGINE
     return {"ok": True, "engine": ENGINE_VERSION, "llm": bool(os.environ.get("ANTHROPIC_API_KEY")),
-            "apk_reasoning": reasoning.model() if reasoning.enabled() else None,
+            "apk_reasoning": reasoning.model() if reasoning.enabled() else None, "apk_reasoning_last": reasoning.LAST or None,
             "virustotal": bool(VT_KEY), "ocr": HAS_OCR, "ocr_engine": OCR_ENGINE, "android_apk": os.path.isfile(APK_PATH) or bool(APK_URL), "service": "payguard",
             "push_recent": [f"{h}:{st}" for h, st in family.PUSH_LOG[-5:]], "tts": "espeak-ng" if ESPEAK else None, **auth.health()}
 
