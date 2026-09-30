@@ -69,6 +69,76 @@ BRAND_DOMAINS = {
 }
 
 VPA_RE = re.compile(r"^[A-Za-z0-9.\-_]{2,256}@[A-Za-z0-9]{2,64}$")
+UPI_ACTIONS = ("pay", "collect", "mandate", "autopay")
+UPI_LIKE = re.compile(r"^\s*upi\s*[:\\/]", re.I)          # anything that *claims* to be a UPI link, well-formed or not
+_AMOUNT_RE = re.compile(r"^\d{1,8}(\.\d{1,2})?$")
+_PARAM_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,31}$")
+_BAD_PERCENT = re.compile(r"%(?![0-9A-Fa-f]{2})")
+
+
+def upi_format_problems(text: str, check_scheme: bool = True) -> list[str]:
+    """Strict check of a UPI payment URI: upi://<pay|collect|mandate|autopay>?pa=<name@handle>&...
+    Returns the exact reasons it is malformed; an empty list means the format is valid."""
+    problems: list[str] = []
+    raw = text.strip()
+    query = ""
+    if check_scheme:
+        m = re.match(r"^upi://([A-Za-z]+)/?\?(.*)$", raw, re.I | re.S)
+        if m:
+            action, query = m.group(1).lower(), m.group(2)
+            if action not in UPI_ACTIONS:
+                problems.append(f"unknown UPI action '{m.group(1)}' (expected upi://pay)")
+        else:
+            sep = re.match(r"^\s*upi\s*([:\\/ ]*)", raw, re.I)
+            got = "upi" + (sep.group(1) if sep else "")
+            if not re.match(r"^upi://", raw, re.I):
+                problems.append(f"link starts with '{got}' instead of 'upi://'")
+            elif "?" not in raw:
+                problems.append("no payment details after the action (missing '?pa=...')")
+            else:
+                act = re.match(r"^upi://([^?]*)\?", raw, re.I).group(1)
+                problems.append(f"'{act or '(empty)'}' is not a valid UPI action (expected upi://pay)")
+            query = raw.split("?", 1)[1] if "?" in raw else ""
+    else:
+        query = raw.split("?", 1)[1] if "?" in raw else ""
+    if "\\" in raw or re.search(r"[\x00-\x1f\x7f]", raw):
+        problems.append("contains a backslash or hidden control characters")
+    if _BAD_PERCENT.search(query):
+        problems.append("broken %-encoding in the parameters")
+    seen: dict[str, str] = {}
+    for piece in query.split("&"):
+        if piece == "":
+            continue
+        if "=" not in piece:
+            problems.append(f"parameter '{piece[:30]}' has no value (expected key=value)")
+            continue
+        k, v = piece.split("=", 1)
+        if not _PARAM_RE.match(k):
+            problems.append(f"invalid parameter name '{k[:30]}'")
+            continue
+        kl = k.lower()
+        if kl in seen:
+            problems.append(f"parameter '{kl}' appears more than once")
+        seen[kl] = unquote(v).strip()
+    pa = seen.get("pa")
+    if pa is None:
+        problems.append("missing payee UPI ID ('pa')")
+    elif not pa:
+        problems.append("payee UPI ID ('pa') is empty")
+    elif pa.count("@") != 1:
+        problems.append(f"UPI ID '{pa[:60]}' must contain exactly one '@' (like name@bank)")
+    elif not VPA_RE.match(pa):
+        problems.append(f"UPI ID '{pa[:60]}' has invalid characters or length")
+    am = seen.get("am")
+    if am:
+        if not _AMOUNT_RE.match(am):
+            problems.append(f"amount '{am[:20]}' is not a valid number")
+        elif float(am) <= 0:
+            problems.append("amount must be more than zero")
+    cu = seen.get("cu")
+    if cu and cu.upper() != "INR":
+        problems.append(f"currency '{cu[:10]}' is not INR")
+    return problems
 
 
 # ---------------------------------------------------------------- decoding
@@ -139,6 +209,9 @@ def _registrable(host: str) -> str:
 # ---------------------------------------------------------------- UPI
 
 def _analyze_upi(text: str) -> tuple[dict, list[Finding]]:
+    problems = upi_format_problems(text, check_scheme=bool(UPI_LIKE.match(text)))
+    if UPI_LIKE.match(text) and not re.match(r"^upi://", text.strip(), re.I):
+        text = re.sub(r"^\s*upi\s*[:\\/ ]*", "upi://", text.strip(), flags=re.I)   # read the details anyway
     sp = urlsplit(text)
     action = (sp.netloc or sp.path.strip("/")).lower() or "pay"
     q = {k.lower(): unquote(v[0]).strip() for k, v in parse_qs(sp.query, keep_blank_values=True).items()}
@@ -158,6 +231,7 @@ def _analyze_upi(text: str) -> tuple[dict, list[Finding]]:
         "note": tn, "merchant_code": mc or None, "transaction_ref": q.get("tr") or None, "signed": bool(q.get("sign")),
         "is_merchant": is_merchant, "psp_handle": handle, "known_psp": handle in KNOWN_PSP_HANDLES,
         "money_direction": "out", "params": q,
+        "upi_format": {"valid": not problems, "problems": problems},
     }
     F: list[Finding] = []
     amt_en = f"₹{amount:,.2f}" if amount else "money"
@@ -226,16 +300,20 @@ def _analyze_upi(text: str) -> tuple[dict, list[Finding]]:
             [f"UPI ID: {pa}", "Merchant code: " + (mc or "none")] + (["UPI ID is a phone number"] if phone_vpa else []),
         ))
 
-    if not pa or not VPA_RE.match(pa):
+    if problems:
         F.append(Finding(
-            "INVALID_UPI_ID", "high", 25,
-            T("The payment address is broken or missing", "पेमेंट का पता गलत है या नहीं है", "ಪಾವತಿ ವಿಳಾಸ ತಪ್ಪಾಗಿದೆ ಅಥವಾ ಇಲ್ಲ"),
-            T("A genuine UPI QR always has a valid UPI ID like name@bank. This one does not.",
-              "असली UPI QR में हमेशा name@bank जैसी सही UPI ID होती है। इसमें नहीं है।",
-              "ನಿಜವಾದ UPI QR ನಲ್ಲಿ ಯಾವಾಗಲೂ name@bank ನಂತಹ ಸರಿಯಾದ UPI ID ಇರುತ್ತದೆ. ಇದರಲ್ಲಿ ಇಲ್ಲ."),
-            [f"pa = {pa or '(missing)'}"],
+            "INVALID_UPI_FORMAT", "high", 45,
+            T("Invalid UPI format", "UPI लिंक का फ़ॉर्मैट गलत है", "UPI ಲಿಂಕ್ ಫಾರ್ಮ್ಯಾಟ್ ತಪ್ಪಾಗಿದೆ"),
+            T("This is not a correctly formed UPI payment link. Genuine UPI QR codes always follow the exact form "
+              "upi://pay?pa=name@bank. A broken link can be a tampered or fake QR, and different apps may read it differently, "
+              "so it can never be treated as safe.",
+              "यह सही तरीके से बना UPI पेमेंट लिंक नहीं है। असली UPI QR हमेशा upi://pay?pa=name@bank जैसे सटीक रूप में होते हैं। "
+              "टूटा लिंक छेड़छाड़ किया हुआ या नकली QR हो सकता है, और अलग-अलग ऐप इसे अलग पढ़ सकते हैं, इसलिए इसे सुरक्षित नहीं माना जा सकता।",
+              "ಇದು ಸರಿಯಾಗಿ ರೂಪಿಸಿದ UPI ಪಾವತಿ ಲಿಂಕ್ ಅಲ್ಲ. ನಿಜವಾದ UPI QR ಯಾವಾಗಲೂ upi://pay?pa=name@bank ಎಂಬ ನಿಖರ ರೂಪದಲ್ಲಿರುತ್ತದೆ. "
+              "ಮುರಿದ ಲಿಂಕ್ ತಿದ್ದಿದ ಅಥವಾ ನಕಲಿ QR ಆಗಿರಬಹುದು ಮತ್ತು ಬೇರೆ ಆ್ಯಪ್‌ಗಳು ಅದನ್ನು ಬೇರೆ ರೀತಿ ಓದಬಹುದು, ಆದ್ದರಿಂದ ಇದನ್ನು ಸುರಕ್ಷಿತವೆಂದು ಪರಿಗಣಿಸಲಾಗದು."),
+            [f"Problem: {p}" for p in problems],
         ))
-    elif handle not in KNOWN_PSP_HANDLES:
+    elif handle not in KNOWN_PSP_HANDLES:          # well-formed link with a handle we don't know
         F.append(Finding(
             "UNUSUAL_UPI_HANDLE", "low", 8,
             T("Unusual UPI handle", "अनजाना UPI हैंडल", "ಅಪರಿಚಿತ UPI ಹ್ಯಾಂಡಲ್"),
@@ -488,18 +566,28 @@ QR_VERDICTS = [
 ]
 
 
+INVALID_UPI_HEADLINE = T("Invalid UPI format — don't pay", "UPI फ़ॉर्मैट गलत है — पैसे न भेजें", "UPI ಫಾರ್ಮ್ಯಾಟ್ ತಪ್ಪಾಗಿದೆ — ಪಾವತಿಸಬೇಡಿ")
+INVALID_UPI_ADVICE = T(
+    "This is not a valid UPI payment link, so PayGuard cannot treat it as safe. Don't pay through it. If you really owe "
+    "this person money, ask for their UPI ID and type it into your UPI app yourself.",
+    "यह सही UPI पेमेंट लिंक नहीं है, इसलिए PayGuard इसे सुरक्षित नहीं मान सकता। इससे पैसे न भेजें। अगर सच में इन्हें पैसे देने हैं, "
+    "तो उनकी UPI ID पूछें और खुद अपने UPI ऐप में डालें।",
+    "ಇದು ಸರಿಯಾದ UPI ಪಾವತಿ ಲಿಂಕ್ ಅಲ್ಲ, ಆದ್ದರಿಂದ PayGuard ಇದನ್ನು ಸುರಕ್ಷಿತವೆಂದು ಪರಿಗಣಿಸಲಾಗದು. ಇದರ ಮೂಲಕ ಪಾವತಿಸಬೇಡಿ. ನಿಜವಾಗಿ "
+    "ಹಣ ಕೊಡಬೇಕಿದ್ದರೆ, ಅವರ UPI ID ಕೇಳಿ ನಿಮ್ಮ UPI ಆ್ಯಪ್‌ನಲ್ಲಿ ನೀವೇ ಟೈಪ್ ಮಾಡಿ.")
+
+
 def analyze_payload(text: str) -> dict:
     text = (text or "").strip()
     if not text:
         raise ValueError("Nothing to analyse.")
     text = text[:4000]
     low = text.lower()
-    if low.startswith("upi://") or low.startswith(("phonepe://pay", "paytmmp://pay", "tez://upi", "gpay://upi", "bhim://")):
+    if UPI_LIKE.match(text) or low.startswith(("phonepe://pay", "paytmmp://pay", "tez://upi", "gpay://upi", "bhim://")):
         details, findings = _analyze_upi(text)
     elif re.match(r"^(https?://|www\.)", low) or re.match(r"^[a-z0-9\-]+(\.[a-z0-9\-]+)+(/|$)", low):
         details, findings = _analyze_url(text)
         # UPI deep link hidden inside a URL
-        m = re.search(r"upi://[^\s\"']+", unquote(text), re.I)
+        m = re.search(r"upi\s*[:\\/]{1,3}[A-Za-z]*\?[^\s\"']+", unquote(text), re.I)
         if m:
             _, extra = _analyze_upi(m.group(0))
             findings += [f for f in extra if f.id != "MONEY_GOES_OUT"]
@@ -515,6 +603,10 @@ def analyze_payload(text: str) -> dict:
     for threshold, level, headline, advice in QR_VERDICTS:
         if score >= threshold:
             break
+    fmt = details.get("upi_format") if isinstance(details, dict) else None
+    if fmt and not fmt["valid"] and level in ("low", "caution", "suspicious"):
+        score = max(score, 40)
+        level, headline, advice = "suspicious", INVALID_UPI_HEADLINE, INVALID_UPI_ADVICE
     return {
         "kind": "qr",
         "id": hashlib.sha256(text.encode()).hexdigest(),

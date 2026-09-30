@@ -72,6 +72,7 @@
     const card = $("#paycard");
     const d = r.details || {};
     if (r.kind !== "qr" || d.type !== "upi" || d.action && !/^pay$/i.test(d.action)) { card.hidden = true; return; }
+    if (d.upi_format && !d.upi_format.valid) { card.hidden = true; return; }   // never hand a malformed link to a UPI app
     card.hidden = false;
     const level = r.verdict.level;
     const risky = level === "danger" || level === "suspicious";
