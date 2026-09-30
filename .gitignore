@@ -7,3 +7,4 @@ downloads/*.apk
 .env
 .env.*
 !.env.example
+!app/ml/data/
