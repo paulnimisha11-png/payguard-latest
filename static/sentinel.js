@@ -13,11 +13,11 @@
   const LEVEL = { danger: "danger", suspicious: "warn", caution: "warn", low: "safe" };
   const TEXT = {
     en: { verified: "VERIFIED", suspicious: "SUSPICIOUS", unverified: "UNVERIFIED", scan: "ANALYSING…", danger: "SCAM DETECTED", warn: "SUSPICIOUS", caution: "BE CAREFUL", safe: "LOOKS SAFE",
-          kick: "PAYGUARD VERDICT", kickScan: "SCANNING", risk: "risk" },
+          kick: "PAYGUARD RISK CHECK", kickScan: "SCANNING", risk: "risk", sign: "warning sign", signs: "warning signs", nosigns: "no warning signs" },
     hi: { verified: "सत्यापित", suspicious: "संदिग्ध", unverified: "पुष्टि नहीं हुई", scan: "जाँच हो रही है…", danger: "धोखा पकड़ा गया", warn: "संदिग्ध", caution: "सावधान रहें", safe: "सुरक्षित लगता है",
-          kick: "PAYGUARD का फ़ैसला", kickScan: "स्कैन", risk: "जोखिम" },
+          kick: "PAYGUARD जोखिम जाँच", kickScan: "स्कैन", risk: "जोखिम", sign: "चेतावनी संकेत", signs: "चेतावनी संकेत", nosigns: "कोई चेतावनी संकेत नहीं" },
     kn: { verified: "ದೃಢೀಕರಿಸಲಾಗಿದೆ", suspicious: "ಅನುಮಾನಾಸ್ಪದ", unverified: "ದೃಢೀಕರಿಸಲಾಗಿಲ್ಲ", scan: "ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…", danger: "ಮೋಸ ಪತ್ತೆಯಾಗಿದೆ", warn: "ಅನುಮಾನಾಸ್ಪದ", caution: "ಎಚ್ಚರಿಕೆ", safe: "ಸುರಕ್ಷಿತವಾಗಿದೆ",
-          kick: "PAYGUARD ತೀರ್ಪು", kickScan: "ಸ್ಕ್ಯಾನ್", risk: "ಅಪಾಯ" },
+          kick: "PAYGUARD ಅಪಾಯ ಪರಿಶೀಲನೆ", kickScan: "ಸ್ಕ್ಯಾನ್", risk: "ಅಪಾಯ", sign: "ಎಚ್ಚರಿಕೆ ಸೂಚನೆ", signs: "ಎಚ್ಚರಿಕೆ ಸೂಚನೆಗಳು", nosigns: "ಯಾವುದೇ ಎಚ್ಚರಿಕೆ ಇಲ್ಲ" },
   };
   const KIND = { msg: "Message", qr: "QR / UPI", shot: "Payment screenshot", apk: "App file" };
   const lang = () => { const l = window.APKX && window.APKX.lang ? window.APKX.lang() : document.documentElement.lang; return TEXT[l] ? l : "en"; };
@@ -53,6 +53,7 @@
           <p class="sn-kick"><span class="sn-dot"></span><span class="sn-kick-t"></span></p>
           <h2 class="sn-title"></h2>
           <p class="sn-sub"></p>
+          <div class="sn-cps"></div>
         </div>
         <div class="sn-ring" aria-hidden="true"></div>`;
       this.fig = el.querySelector(".sn-fig");
@@ -70,7 +71,7 @@
       document.addEventListener("visibilitychange", () => (document.hidden ? this.stop() : this.el.offsetParent && this.start()));
     }
 
-    set(state, title, sub, kick) {
+    set(state, title, sub, kick, cps) {
       const s = STATES[state] || STATES.scan;
       const prev = this.state;
       this.state = state; this.target = s;
@@ -84,6 +85,8 @@
       el.querySelector(".sn-kick-t").textContent = kick;
       decrypt(el.querySelector(".sn-title"), title, state === "scan" ? 500 : 900);
       el.querySelector(".sn-sub").textContent = sub || "";
+      el.querySelector(".sn-cps").innerHTML = cps || "";
+      el.classList.toggle("has-cp", !!cps);
       if (prev !== state && state !== "scan") {
         el.classList.remove("hit"); void el.offsetWidth; el.classList.add("hit");   // one-shot entrance (flash / shake / ring)
         if (state === "danger" && navigator.vibrate) { try { navigator.vibrate([60, 40, 60]); } catch (e) { /* not allowed */ } }
@@ -168,18 +171,14 @@
       const el = document.getElementById("sentinel");
       if (!el || !r || !r.verdict) return;
       resultS = resultS || new Sentinel(el);
-      const lvl = r.verdict.level;
-      let state = LEVEL[lvl] || "warn";
-      let title = lvl === "caution" ? tx("caution") : tx(state);
-      const vs = r.kind === "shot" && r.verification ? r.verification.status : null;
-      if (vs) {                  // a screenshot is never "safe": only a trusted source can verify a payment
-        state = vs === "VERIFIED" ? "safe" : vs === "SUSPICIOUS" ? "danger" : "warn";
-        title = tx(vs.toLowerCase());
-      }
-      const ml = r.ml && r.ml.status === "ok" ? r.ml : null;
-      const sub = ml ? `${KIND[r.kind]} · ML scam probability ${Math.round(ml.scam_probability_percent)}%`
-        : `${KIND[r.kind] || "App file"} · ${tx("risk")} ${r.verdict.score}/100`;
-      resultS.set(state, title, sub, tx("kick"));
+      // Plain risk zones instead of "scam detected": PayGuard can't be 100% sure, so it says how risky and why.
+      const M = window.PGMeter, lg = lang();
+      const lv = M ? M.level(r) : r.verdict.level;
+      const state = { danger: "danger", suspicious: "warn", caution: "warn", low: "safe" }[lv] || "warn";
+      const title = M ? M.label(lv, lg) : tx(state);
+      const nWarn = M ? M.checkpoints(r, lg, 99).filter((c) => c.ok === false).length : 0;
+      const sub = `${KIND[r.kind] || "App file"} · ${nWarn ? `${nWarn} ${tx(nWarn === 1 ? "sign" : "signs")}` : tx("nosigns")}`;
+      resultS.set(state, title, sub, tx("kick"), M ? M.checkpointsHTML(r, lg, 5) : "");
     },
   };
   window.Sentinel = api;

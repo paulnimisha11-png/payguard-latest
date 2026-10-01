@@ -82,10 +82,10 @@
     const ai = r.ai;
     const aiTxt = ai ? `<p class="rk-ai"><b>AI (${esc(ai.risk_level.toLowerCase())} risk${ai.cached ? ", cached" : ""}):</b> ${esc(ai.reason)}</p>`
       : `<p class="rk-ai dim">AI reading: ${esc((lay.ai || {}).detail || "not used")}</p>`;
-    card.className = "card riskcard rk-" + k.level.toLowerCase();
+    card.className = "card riskcard rk-" + ({ danger: "high", suspicious: "medium", caution: "low", low: "minimal" }[r.verdict.level] || k.level.toLowerCase());
     card.innerHTML = `
-      <div class="rk-head"><span class="rk-badge">${esc(RISK_TEXT[k.level] || k.level)}</span>
-        <span class="rk-score" title="${esc(k.score_note)}">${k.score}/100 risk points <small>(not a probability)</small></span></div>
+      <div class="rk-head"><span class="rk-badge">${esc(window.PGMeter ? window.PGMeter.label(window.PGMeter.level(r), L) : (RISK_TEXT[k.level] || k.level))}</span>
+        <span class="rk-score">Based on ${Object.keys(lay).length} independent checks. A risk level, not a guarantee.</span></div>
       ${k.factors.length ? `<ul class="rk-factors">${k.factors.slice(0, 8).map((f) => `<li class="sev-${f.severity}"><span>${esc(tr(f.title))}</span><em>${esc(LAYER_LABEL[f.layer] || f.layer)}</em></li>`).join("")}</ul>`
         : `<p class="dim">No risk factors found by any layer.</p>`}
       ${aiTxt}

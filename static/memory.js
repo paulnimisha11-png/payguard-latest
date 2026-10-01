@@ -18,7 +18,7 @@
       empty: "Nothing here yet. When a check finds a scam or something suspicious, it's remembered here.", check_now: "Check something",
       seen_n: "checked {n} times", open: "Open result", forget: "Forget", clear: "Clear all", clear_q: "Forget all {n} scams on this device?",
       kind_msg: "Message", kind_qr: "QR / UPI", kind_shot: "Screenshot", kind_apk: "App",
-      lvl_danger: "Dangerous", lvl_suspicious: "Suspicious", thing_msg: "message", thing_qr: "QR code", thing_shot: "screenshot", thing_apk: "app file",
+      lvl_danger: "High risk", lvl_suspicious: "Medium risk", thing_msg: "message", thing_qr: "QR code", thing_shot: "screenshot", thing_apk: "app file",
       no_storage: "Your browser is blocking storage, so Scam Memory can't save anything on this device." },
     hi: { nav_check: "जाँचें", nav_trends: "ट्रेंड्स", nav_family: "परिवार", nav_memory: "मेरी ठगी",
       hit_t: "⚠️ यह बिल्कुल उस ठगी जैसा है जिसका आप पहले सामना कर चुके हैं", hit_on: "आपने {date} को “{title}” जाँचा था।", see: "अपनी ठगी की सूची देखें",
@@ -30,7 +30,7 @@
       empty: "अभी यहाँ कुछ नहीं है। जब कोई जाँच ठगी या कुछ संदिग्ध पकड़ती है, वह यहाँ याद रखी जाती है।", check_now: "कुछ जाँचें",
       seen_n: "{n} बार जाँचा", open: "नतीजा खोलें", forget: "भूल जाएँ", clear: "सब मिटाएँ", clear_q: "इस डिवाइस से सभी {n} ठगी मिटा दें?",
       kind_msg: "मैसेज", kind_qr: "QR / UPI", kind_shot: "स्क्रीनशॉट", kind_apk: "ऐप",
-      lvl_danger: "ख़तरनाक", lvl_suspicious: "संदिग्ध", thing_msg: "मैसेज", thing_qr: "QR कोड", thing_shot: "स्क्रीनशॉट", thing_apk: "ऐप फ़ाइल",
+      lvl_danger: "ज़्यादा जोखिम", lvl_suspicious: "मध्यम जोखिम", thing_msg: "मैसेज", thing_qr: "QR कोड", thing_shot: "स्क्रीनशॉट", thing_apk: "ऐप फ़ाइल",
       no_storage: "आपका ब्राउज़र स्टोरेज रोक रहा है, इसलिए ठगी की याद इस डिवाइस पर कुछ सेव नहीं कर सकती।" },
     kn: { nav_check: "ಪರಿಶೀಲಿಸಿ", nav_trends: "ಟ್ರೆಂಡ್‌ಗಳು", nav_family: "ಕುಟುಂಬ", nav_memory: "ನನ್ನ ವಂಚನೆಗಳು",
       hit_t: "⚠️ ಇದು ನೀವು ಹಿಂದೆ ಎದುರಿಸಿದ ವಂಚನೆಯಂತೆಯೇ ಇದೆ", hit_on: "ನೀವು {date} ರಂದು “{title}” ಪರಿಶೀಲಿಸಿದ್ದಿರಿ.", see: "ನಿಮ್ಮ ವಂಚನೆ ಇತಿಹಾಸ ನೋಡಿ",
@@ -42,7 +42,7 @@
       empty: "ಇಲ್ಲಿ ಇನ್ನೂ ಏನೂ ಇಲ್ಲ. ಪರಿಶೀಲನೆ ವಂಚನೆ ಅಥವಾ ಸಂಶಯಾಸ್ಪದವಾದದ್ದನ್ನು ಕಂಡಾಗ ಅದು ಇಲ್ಲಿ ನೆನಪಿನಲ್ಲಿರುತ್ತದೆ.", check_now: "ಏನಾದರೂ ಪರಿಶೀಲಿಸಿ",
       seen_n: "{n} ಬಾರಿ ಪರಿಶೀಲಿಸಲಾಗಿದೆ", open: "ಫಲಿತಾಂಶ ತೆರೆಯಿರಿ", forget: "ಮರೆಯಿರಿ", clear: "ಎಲ್ಲವನ್ನೂ ಅಳಿಸಿ", clear_q: "ಈ ಸಾಧನದಿಂದ ಎಲ್ಲಾ {n} ವಂಚನೆಗಳನ್ನು ಮರೆಯಬೇಕೇ?",
       kind_msg: "ಸಂದೇಶ", kind_qr: "QR / UPI", kind_shot: "ಸ್ಕ್ರೀನ್‌ಶಾಟ್", kind_apk: "ಆ್ಯಪ್",
-      lvl_danger: "ಅಪಾಯಕಾರಿ", lvl_suspicious: "ಸಂಶಯಾಸ್ಪದ", thing_msg: "ಸಂದೇಶ", thing_qr: "QR ಕೋಡ್", thing_shot: "ಸ್ಕ್ರೀನ್‌ಶಾಟ್", thing_apk: "ಆ್ಯಪ್ ಫೈಲ್",
+      lvl_danger: "ಹೆಚ್ಚಿನ ಅಪಾಯ", lvl_suspicious: "ಮಧ್ಯಮ ಅಪಾಯ", thing_msg: "ಸಂದೇಶ", thing_qr: "QR ಕೋಡ್", thing_shot: "ಸ್ಕ್ರೀನ್‌ಶಾಟ್", thing_apk: "ಆ್ಯಪ್ ಫೈಲ್",
       no_storage: "ನಿಮ್ಮ ಬ್ರೌಸರ್ ಸಂಗ್ರಹಣೆಯನ್ನು ತಡೆಯುತ್ತಿದೆ, ಹಾಗಾಗಿ ವಂಚನೆ ನೆನಪು ಈ ಸಾಧನದಲ್ಲಿ ಏನನ್ನೂ ಉಳಿಸಲಾಗದು." },
     ta: { nav_check: "சரிபார்", nav_trends: "ட்ரெண்டுகள்", nav_family: "குடும்பம்", nav_memory: "என் மோசடிகள்",
       hit_t: "⚠️ இது நீங்கள் முன்பு சந்தித்த மோசடியைப் போலவே உள்ளது", hit_on: "நீங்கள் {date} அன்று “{title}” சரிபார்த்தீர்கள்.", see: "உங்கள் மோசடி வரலாற்றைப் பார்க்கவும்",
@@ -289,7 +289,7 @@
       return `${head}<article class="mitem ${esc(e.level)}">
         <span class="mico" aria-hidden="true">${ICON[e.kind] || "⚠️"}</span>
         <div class="mbody">
-          <div class="mtop"><b>${esc(pick(e.title))}</b><span class="mpill">${esc(t("lvl_" + e.level))} · ${e.score}</span></div>
+          <div class="mtop"><b>${esc(pick(e.title))}</b><span class="mpill">${esc(t("lvl_" + e.level))}</span></div>
           <p class="dim small">${esc(t("kind_" + e.kind))} · ${esc(fmtDate(e.last || e.at))}${e.count > 1 ? " · " + esc(t("seen_n", { n: e.count })) : ""}</p>
           ${tricks ? `<p class="small">${tricks}</p>` : ""}
           ${chips ? `<div class="mchips">${chips}</div>` : ""}

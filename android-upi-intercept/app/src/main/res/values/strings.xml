@@ -147,4 +147,8 @@
     <string name="risk_memory">Scam Memory</string>
     <string name="risk_ti">Threat intelligence</string>
     <string name="risk_safe">What to do</string>
+    <string name="zone_high">HIGH RISK</string>
+    <string name="zone_medium">MEDIUM RISK</string>
+    <string name="zone_low">LOW RISK</string>
+    <string name="zone_very_low">VERY LOW RISK</string>
 </resources>

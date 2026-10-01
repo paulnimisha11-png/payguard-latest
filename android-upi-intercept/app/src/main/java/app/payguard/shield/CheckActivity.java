@@ -371,8 +371,10 @@ public class CheckActivity extends Activity {
         getWindow().setStatusBarColor(Ui.levelColor(level));
         JSONObject comm = r.optJSONObject("community");
         int reports = comm == null ? 0 : comm.optInt("reports", 0);
-        scoreText.setText(reports > 0 ? getString(R.string.risk_score, score) + "   🚩 " + reportedBy(reports)
-                : getString(R.string.risk_score, score));
+        // A risk zone, not a number: a scam check can't be precise to the point (same wording as the website's meter).
+        String zone = getString("danger".equals(level) ? R.string.zone_high : "suspicious".equals(level) ? R.string.zone_medium
+                : "caution".equals(level) ? R.string.zone_low : R.string.zone_very_low);
+        scoreText.setText(reports > 0 ? zone + "   🚩 " + reportedBy(reports) : zone);
         lastResult = r;
         boolean canReport = comm != null && comm.optBoolean("can_report", false) && !r.optBoolean("offline");
         voteCard.setVisibility(canReport ? View.VISIBLE : View.GONE);
@@ -653,7 +655,11 @@ public class CheckActivity extends Activity {
         if (k == null) return;
         String lvl = k.optString("level", "");
         int red = Color.parseColor("#B3122F");
-        row(getString(R.string.risk_level), lvl + " · " + getString(R.string.risk_points, k.optInt("score")), false,
+        JSONObject vv = r.optJSONObject("verdict");
+        String vl = vv == null ? "" : vv.optString("level", "");
+        String zone = getString("danger".equals(vl) ? R.string.zone_high : "suspicious".equals(vl) ? R.string.zone_medium
+                : "caution".equals(vl) ? R.string.zone_low : R.string.zone_very_low);
+        row(getString(R.string.risk_level), zone, false,
                 "HIGH".equals(lvl) || "MEDIUM".equals(lvl) ? red : ink);
         JSONArray fs = k.optJSONArray("factors");
         if (fs != null && fs.length() > 0) {
