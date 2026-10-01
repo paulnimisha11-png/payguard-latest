@@ -35,7 +35,7 @@ quiet period can take ~30–60 s while it wakes up.</sub>
 
 ## Table of contents
 
-1. [Context & overview](#1-context--overview): [problem](#the-problem) · [what PayGuard does](#what-payguard-does) · [why it's different](#why-its-different) · [screenshots](#demo-screenshots--media)
+1. [Context & overview](#1-context--overview): [problem](#the-problem) · [what PayGuard does](#what-payguard-does) · [inside the scanners](#inside-the-four-scanners) · [why it's different](#why-its-different) · [screenshots](#demo-screenshots--media)
 2. [Architecture & system design](#2-architecture--system-design): [system diagram](#system-architecture) · [execution flows](#end-to-end-execution-flows) · [docs](#documentation-links)
 3. [Installation & configuration](#3-installation--configuration): [prerequisites](#prerequisites--tech-stack) · [install](#step-by-step-installation) · [environment variables](#environment-variables-matrix)
 4. [Developer experience & quality control](#4-developer-experience--quality-control): [usage snippets](#usage-snippets) · [testing & QA](#testing--qa-commands)
@@ -72,7 +72,109 @@ and one Android app share the same engine:
 | 💬 | **SMS / WhatsApp scam checker** | A pasted or shared message (+ sender, if known) | **HIGH / MEDIUM / LOW / MINIMAL** risk from a 6-layer pipeline: rules, link analysis, sender, Scam Memory, threat intelligence, and AI only when unsure |
 | 📦 | **APK X-Ray** | An `.apk` someone sent you | What the app can do to your phone *before* you install it: banking-trojan fingerprints, OTP theft, fake login pages, who signed it |
 
-Around the scanners:
+### Inside the four scanners
+
+Each scanner follows the same contract: **deterministic checks first, every finding comes with its evidence, and the
+result says plainly what it can't know.** Here is what each one actually does.
+
+#### 🔳 PayPause: QR codes and UPI links *(core feature)*
+
+**The scams it stops.** The most common UPI frauds don't hack anything: they make *you* approve a payment.
+- *"Scan this QR to receive your refund / prize / OLX payment"*: scanning a UPI QR can only ever **send** money.
+- **Collect requests** and **AutoPay mandates** hidden behind a "verification" step.
+- QR codes whose payee name says *SBI Refund Dept* or *Paytm KYC Team* while the money goes to a personal account like `9876501234@ybl`.
+- Tampered or malformed links (`upi:\pay?…`, duplicate `pa=` fields, broken amounts) that some apps still open.
+- QR codes that aren't payments at all: fake bank websites, APK download links, `sms:` codes that bind your SIM, `tel:` codes that dial USSD call-forwarding (`*21*…`), rogue Wi-Fi joins.
+
+**How it works.**
+1. **Decode.** OpenCV reads the QR from an upload, a pasted screenshot or the live camera, trying several image variants (grey, thresholded, inverted, upscaled) so photographed or low-contrast codes still decode.
+2. **Strict UPI validation.** The link must be exactly `upi://pay|collect|mandate?pa=name@handle&…` with valid amount and currency. Anything that merely *looks* like UPI is still parsed, and a malformed link is **never marked safe**; the exact problems are listed.
+3. **Rules.** About 25 checks: receive-money lures in the note or name, collect / AutoPay, official-sounding name on a personal account, unusual UPI handles, large amounts, phone numbers hidden in the note; and for web links, look-alike brand domains, punycode, `@` tricks, raw IP hosts, shorteners, throw-away domains, bait words, missing https and APK downloads.
+4. **Scam Memory.** Has anyone reported this UPI ID, or a look-alike "mutation" of a reported one (`sbi.refund@ybl` → `sbi-refunds@ybl`, `sb1-refund@ybl`)? Look-alike characters and separators are folded before comparing, while IDs that differ only in digits (`ravi.kumar1` / `ravi.kumar2`) are treated as different people.
+5. **ML model.** 36 features from the parsed payment (handle type, digit patterns, payee/note wording, amount shape, merchant codes, community reports…) go into gradient-boosted trees, then isotonic calibration. The output is a **scam probability between 1% and 99%** and the signals that moved it.
+6. **Safety floor.** The ML estimate sets the verdict, but it can never drop below what hard evidence demands: a malformed link, hidden AutoPay or real community reports always win.
+
+**What you see.** Who actually receives the money, how much, and a bold *"this takes money OUT of your account"* when that's the case. The ML estimate is shown with the reasons that moved it ("payee name uses refund words ▲ towards scam"). When the code is clean, a **3-second countdown hands the payment to GPay, PhonePe, Paytm or BHIM**, pre-filled. Risky codes never auto-open: paying anyway needs an explicit "I know this person" tick, and that can alert family.
+
+**On Android, it's a gatekeeper, not a scanner you have to remember.** The PayGuard app can register as the phone's handler for `upi://` links. Any payment link from the camera, Google Lens, WhatsApp or a merchant app reaches PayGuard first. Safe ones are forwarded to your real UPI app in one tap; scams stop on a full-screen warning.
+
+**Try it:** `samples/qr/scam_refund_upi.png` → *Do NOT pay*, ML ≈ 97%. `samples/qr/genuine_shop_upi.png` → low risk, straight to your UPI app.
+
+**Honest limits:** the ML model is a labelled **prototype** trained on a documented synthetic dataset (there is no public labelled UPI-fraud data). A genuine-looking QR from a real but dishonest person can't be detected from the code alone; the payee name your UPI app shows is still the final check.
+
+#### 🧾 Payment screenshot forensics
+
+**The scam it stops.** A buyer shows a *"Payment successful"* screenshot and leaves with the goods, but the screenshot was edited (amount changed, digit added), reused from an old payment, shows a *pending* payment, or was generated by a fake-payment app. Small shopkeepers and online sellers lose money this way every day.
+
+**How it works.** Twelve groups of checks, each reported separately:
+- **File evidence:** photo-editor software or edit history hidden in EXIF / PNG / XMP metadata, photo-of-a-screen, odd crops.
+- **OCR at a fixed 1080 px width, with extra reading passes.** It reads the amount, payee, UPI ID, 12-digit UTR, app transaction ID, date and time, and status. The extra passes are what catch a digit that was painted over.
+- **Pixel forensics on each field OCR found:** a patched background behind the text, a different font weight or style for the same-size text, digits that aren't rendered the way a phone renders them, and error-level analysis for JPEGs. Suspicious areas are **boxed in red** on the image.
+- **Consistency:** pending / failed status, missing or malformed UTR, an app transaction ID whose embedded date and minute contradict the time printed, impossible dates (31 Feb) or future dates, two different amounts on one receipt, amount vs what you expected.
+- **QR on the image:** if the receipt contains a payment QR, it is parsed with the same strict UPI parser and compared with the receipt (different payee or amount = tampering).
+- **History:** the same UTR on a different-looking screenshot, or an edited copy of a receipt someone already checked. Recompressed WhatsApp copies of the *same* image are recognised and not counted.
+- **Your bank SMS (optional):** paste the credit SMS and it is matched against the screenshot.
+
+**What you see:** one of three statuses, chosen deliberately:
+
+| Status | Meaning |
+|---|---|
+| **SUSPICIOUS** | Tampering or inconsistency found. The reason names the most important one. Don't hand over goods. |
+| **UNVERIFIED** | The screenshot is internally consistent and shows no signs of editing, **but a screenshot can't prove a payment**. Check your own bank or UPI app for the reference number shown. |
+| **VERIFIED** | Only when a trusted transaction source (a real, authenticated bank or payment-gateway integration) confirms the payment. The hook exists (`verify.TRUSTED_SOURCES`); none is connected, so PayGuard never claims this today. |
+
+Alongside the status: the extracted fields, the issues found, and the full list of checks with pass / fail / warning / skipped.
+
+**Try it:** `samples/screenshots/fake_edited_amount.png` → SUSPICIOUS; `genuine_receipt.png` → UNVERIFIED.
+
+**Honest limits:** a perfect forgery that regenerates the entire screen can pass pixel checks; that's exactly why a clean result is *UNVERIFIED*, never "genuine". OCR on very low-resolution or photographed screens is less reliable, and the result says so.
+
+#### 💬 SMS / WhatsApp scam checker
+
+**The scams it stops.** Thirteen Indian scam scripts, in English, Hindi (Devanagari and Hinglish) and Kannada:
+- electricity cut-off, KYC / account block, SIM block;
+- parcel / customs fee, e-challan, FASTag;
+- refund / prize, "sent money to you by mistake";
+- part-time job / task scams, instant loans, investment schemes;
+- "digital arrest" by fake police or CBI, and *"hi mum, this is my new number"*.
+
+It also catches what the message wants you to *do*: share an OTP or PIN, enter your PIN to "receive" money, install AnyDesk or an APK, call a personal mobile number, pay a fee, join a video call, keep it secret.
+
+**How it works: six layers, cheapest first.**
+1. **Extraction.** Every link is found with regular expressions and `urllib.parse`; **nothing is ever opened**. Disguised links are recovered (`hxxp://`, `site[.]com`, invisible characters, bare IP addresses) and look-alike Unicode domains are converted to the real address the browser would visit. Phone numbers, UPI IDs and amounts are extracted too.
+2. **Rules.** A topic alone is only a hint ("your electricity bill is due" stays low); **topic + a dangerous request is the scam**. Sentence-level negation means a genuine OTP message ("do not share this code") isn't flagged.
+3. **URL analysis.** The QR scanner's link checks, plus misspelled brand domains (edit distance and look-alike characters: `hdfcbnak.com`, `amaz0n-gifts.in`), IPs written as one long number, odd ports, redirect parameters, heavy encoding, executable downloads and long hyphenated domains.
+4. **Sender.** A registered DLT header (`VM-SBIINB-S`) vs a personal or foreign number vs the organisation the text claims to be. *"SBI" writing from `+91 98…`* is a strong signal; a header from a different company is a mismatch.
+5. **Scam Memory + threat intelligence.** The sender, domains, numbers, UPI IDs and even the message's wording template are checked against community reports, then links against Google Safe Browsing (optional).
+6. **AI, only if still unsure.** Gemini Flash reads a **masked** copy (numbers, UPI IDs and e-mails hidden, links reduced to the website name) and returns structured signals: impersonation, credential or payment request, pressure tactics. It can add at most 25 points, never lowers a score, and can't make a message HIGH risk on its own. Identical messages are answered from a cache, so a viral scam costs one AI call.
+
+**What you see:** HIGH / MEDIUM / LOW / MINIMAL risk; the factors and which layer found each one; the sender check; the links; the Scam Memory and threat-intel results; a short AI explanation when it was used; what to do now; and the status of every layer (ran, skipped, unavailable). Dangerous phrases are highlighted inside the message itself.
+
+**Try it:** *"Dear customer your SBI account will be blocked today. Update KYC at http://sbi-kyc-update.xyz/login and share the OTP"* with sender `+919876543210` → HIGH: OTP request, dangerous link, known scam script, bank claim from a personal number. The AI isn't needed.
+
+**Honest limits:** brand-new scam domains aren't listed anywhere yet; link redirects aren't followed; sender IDs can be spoofed; carefully worded scams can pass the rules. Each limit is covered by another layer, and none is hidden from the user.
+
+#### 📦 APK X-Ray
+
+**The scam it stops.** *"Courier delivery update.apk"*, *"Electricity bill.apk"* or *"SBI KYC.apk"* sent on WhatsApp. Once installed, these banking trojans read every OTP, draw fake login screens over your bank app, forward your calls and upload everything to a Telegram bot. PayGuard looks inside the file **without installing or running it**.
+
+**How it works.**
+1. **Safe unpacking:** size, entry-count and zip-bomb checks; split bundles (`.apks`, `.xapk`) unwrapped.
+2. **Manifest:** androguard decodes the binary `AndroidManifest.xml`: permissions, services, receivers, accessibility services, SDK levels.
+3. **Code:** a custom DEX reader pulls every string and every referenced Android API in milliseconds (SMS parsing, `content://sms`, overlay windows, device admin, call control…).
+4. **Resources and assets:** built-in phishing forms (CVV / ATM PIN / MPIN fields), hidden APK or DEX payloads, packers.
+5. **Signature:** unsigned, debug-signed or freshly signed apps.
+6. **24 rules**, including the **banking-trojan triad** (read SMS + accessibility + draw over apps), OTP theft, Telegram exfiltration, call forwarding (`*21*`), Indian bank target lists, brand impersonation (name says *SBI* but the package isn't SBI's), scam-lure mismatch (a "courier" app that wants your SMS), hidden icon, dropper behaviour, default-SMS takeover and old target SDKs that skip permission prompts.
+
+Everything runs in a short-lived **worker process with a timeout**, so a hostile file can't take the server down. The file is deleted after the scan; only the report is kept, cached by SHA-256, so an APK going viral is analysed once and the report says *"this exact file has been checked N times"*.
+
+**What you see:** a 0–100 risk score and verdict ("Do NOT install this app"); the trojan triad as three cards; "what a real courier app needs vs what this one asks for"; every finding with its evidence; optionally a VirusTotal hash lookup and a Gemini explanation written from the extracted facts (never the file). Read-aloud and "send to family on WhatsApp" buttons sit on the result.
+
+**Try it:** `samples/Courier_Delivery_Update.apk` (an inert fixture we built) → **100 / 100**.
+
+**Honest limits:** static analysis can't see code downloaded after install or hidden by commercial packers (packers are flagged instead). Legitimate SMS apps and screen readers need the same permissions, which is why every finding shows its evidence and "low risk" is never presented as "safe".
+
+#### Around the scanners
 
 - **Community Scam Memory.** One tap ("It got me" / "It's fake") warns the next person who checks the same UPI ID,
   number, website, screenshot or app. It is protected against false reports (independent networks, disputes, moderation).
@@ -178,7 +280,7 @@ flowchart LR
 | Component | Code | Responsibility | Talks to |
 |---|---|---|---|
 | API layer | `app/main.py` | Routing, upload limits, rate limiting, pages, `_after_check` | all scanners, store |
-| APK X-Ray | `app/analyzer/` | Zip safety → manifest → DEX strings/method refs → certificate → 22 rules | spawn worker (`worker.py`), Gemini (`reasoning.py`), VirusTotal |
+| APK X-Ray | `app/analyzer/` | Zip safety → manifest → DEX strings/method refs → certificate → 24 rules | spawn worker (`worker.py`), Gemini (`reasoning.py`), VirusTotal |
 | PayPause QR / UPI | `app/qr/`, `app/ml/` | QR decode, strict UPI validation, link rules, 36-feature gradient-boosted model with calibration | store (community), `complaints/community.py` |
 | Screenshot forensics | `app/screenshot/` | OCR, field extraction, pixel forensics, consistency checks, VERIFIED / SUSPICIOUS / UNVERIFIED | store (UTR reuse, perceptual hashes) |
 | SMS pipeline | `app/message/` | Extraction, rules, URL heuristics, sender, Scam Memory, threat intel, risk engine, gated AI | Safe Browsing, Gemini, store |
@@ -255,7 +357,7 @@ flowchart LR
 
 `upload (streamed, size-capped)` → zip-bomb and entry checks → unwrap `.apks` / `.xapk` → **androguard** decodes the
 binary manifest (permissions, components, SDK levels) → a **custom DEX reader** collects every string and referenced API
-method in milliseconds → resources and assets (fake CVV/PIN forms, hidden payloads) → signing certificate → **22 rules**
+method in milliseconds → resources and assets (fake CVV/PIN forms, hidden payloads) → signing certificate → **24 rules**
 (banking-trojan triad, OTP theft, Telegram exfiltration, call forwarding, bank target lists, lure mismatch, brand
 impersonation…) → score 0–100 → optional Gemini explanation of the facts (never the file) → report cached by SHA-256,
 APK bytes deleted. The analysis runs in a short-lived **spawn worker** so a hostile file can't exhaust the server.
@@ -666,7 +768,7 @@ Security & privacy design, in short:
 ```
 app/
   main.py                FastAPI app: routes, uploads, rate limit, _after_check, pages
-  analyzer/              APK X-Ray: core pipeline, DEX reader, 22 rules, knowledge base, spawn worker
+  analyzer/              APK X-Ray: core pipeline, DEX reader, 24 rules, knowledge base, spawn worker
   qr/                    QR decode + strict UPI parser + link rules
   ml/                    UPI scam model: features, pure-Python runtime, trained model, MODEL_CARD
   screenshot/            OCR, forensics, verify.py (VERIFIED / SUSPICIOUS / UNVERIFIED)

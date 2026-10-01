@@ -199,7 +199,7 @@ upload ─▶ zip safety checks (zip-bomb ratio, entry count, size) ─▶ unwra
        ─▶ custom DEX reader: every string constant + every referenced API method, all classes*.dex (ms, not seconds)
        ─▶ resources.arsc strings + asset HTML/JS → fake CVV/PIN forms
        ─▶ signing cert: unsigned / debug key / key age;  native libs → packers;  assets → hidden APK/DEX payloads
-       ─▶ 22 rules → score 0-100 → verdict + findings (en/hi/kn) ─▶ cached by SHA-256 (APK bytes are deleted)
+       ─▶ 24 rules → score 0-100 → verdict + findings (en/hi/kn) ─▶ cached by SHA-256 (APK bytes are deleted)
 ```
 
 **Key rules** (`app/analyzer/rules.py`):
