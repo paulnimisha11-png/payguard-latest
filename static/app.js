@@ -329,6 +329,15 @@
     bn: { critical: "মারাত্মক", high: "উচ্চ", medium: "মাঝারি", low: "কম" }
   };
 
+  // Risk meter: the zone (very low / low / medium / high), never a precise number. See meter.js.
+  function setMeter(r) {
+    const M = window.PGMeter, box = $("#gauge");
+    if (!M || !box) return;
+    const lv = M.level(r);
+    box.className = "pmeter lv-" + lv;
+    box.innerHTML = M.svg(lv, { lang }) + `<div class="pm-label">${esc(M.label(lv, lang))}</div>`;
+  }
+
   function render(r) {
     stopAudio();
     current = r;
@@ -349,8 +358,7 @@
       const d = r.details;
       $("#app-name").textContent = d.category_name ? (d.category_name[lang] || d.category_name.en) : t("msg_res");
       $("#app-pkg").textContent = r.payload.replace(/\s+/g, " ").slice(0, 90) + (r.payload.length > 90 ? "…" : "");
-      $("#score").textContent = v.score;
-      requestAnimationFrame(() => ($("#g-arc").style.strokeDashoffset = 157 - (157 * v.score) / 100));
+      setMeter(r);
       $("#headline").textContent = (v.headline && (v.headline[lang] || v.headline.en)) || "";
       $("#advice").textContent = (v.advice && (v.advice[lang] || v.advice.en)) || "";
       window.renderMsgCard && window.renderMsgCard(r);
@@ -364,8 +372,7 @@
       const d = r.details;
       $("#app-name").textContent = d.app ? d.app + " receipt" : t("shot_label");
       $("#app-pkg").textContent = r.file.name + " · " + r.file.width + "×" + r.file.height;
-      $("#score").textContent = v.score;
-      requestAnimationFrame(() => ($("#g-arc").style.strokeDashoffset = 157 - (157 * v.score) / 100));
+      setMeter(r);
       $("#headline").textContent = (v.headline && (v.headline[lang] || v.headline.en)) || "";
       $("#advice").textContent = (v.advice && (v.advice[lang] || v.advice.en)) || "";
       window.renderShotCard && window.renderShotCard(r);
@@ -379,8 +386,7 @@
       const d = r.details;
       $("#app-name").textContent = d.type === "upi" ? (d.payee_name || d.payee_vpa || "UPI") : d.type === "url" ? d.host : d.type.toUpperCase();
       $("#app-pkg").textContent = d.type === "upi" ? d.payee_vpa : r.payload.slice(0, 90);
-      $("#score").textContent = v.score;
-      requestAnimationFrame(() => ($("#g-arc").style.strokeDashoffset = 157 - (157 * v.score) / 100));
+      setMeter(r);
       $("#headline").textContent = (v.headline && (v.headline[lang] || v.headline.en)) || "";
       $("#advice").textContent = (v.advice && (v.advice[lang] || v.advice.en)) || "";
       renderQRCard(r);
@@ -393,9 +399,7 @@
     $("#app-pkg").textContent = r.app.package + (r.app.version_name ? " · v" + r.app.version_name : "");
     const icon = $("#app-icon");
     if (r.app.icon) { icon.src = r.app.icon; icon.hidden = false; } else icon.hidden = true;
-    $("#score").textContent = v.score;
-    $("#gauge").setAttribute("aria-label", `Risk score ${v.score} out of 100`);
-    requestAnimationFrame(() => ($("#g-arc").style.strokeDashoffset = 157 - (157 * v.score) / 100));
+    setMeter(r);
     $("#headline").textContent = (v.headline && (v.headline[lang] || v.headline.en)) || "";
     $("#advice").textContent = (v.advice && (v.advice[lang] || v.advice.en)) || "";
     const seen = r.community?.seen_count || 1;
@@ -740,7 +744,7 @@
       const top = current.findings.filter((f) => f.severity === "critical" || f.severity === "high").slice(0, 3).map((f) => "• " + ((f.title && (f.title[lang] || f.title.en)) || f.title));
       const h = (v.headline && (v.headline[lang] || v.headline.en)) || "";
       const a = (v.advice && (v.advice[lang] || v.advice.en)) || "";
-      msg = [`*${h}* (${v.score}/100)`, ...top, "", a, "", "QR: " + current.payload.slice(0, 200)].join("\n");
+      msg = [`*${h}* (${window.PGMeter ? window.PGMeter.label(window.PGMeter.level(current), lang) : v.level})`, ...top, "", a, "", "QR: " + current.payload.slice(0, 200)].join("\n");
       try { await navigator.clipboard.writeText(msg); toast(t("copied")); } catch (_) {}
       window.open("https://wa.me/?text=" + encodeURIComponent(msg), "_blank", "noopener");
       return;

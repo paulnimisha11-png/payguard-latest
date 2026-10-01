@@ -168,9 +168,9 @@ It also catches what the message wants you to *do*: share an OTP or PIN, enter y
 
 Everything runs in a short-lived **worker process with a timeout**, so a hostile file can't take the server down. The file is deleted after the scan; only the report is kept, cached by SHA-256, so an APK going viral is analysed once and the report says *"this exact file has been checked N times"*.
 
-**What you see:** a 0–100 risk score and verdict ("Do NOT install this app"); the trojan triad as three cards; "what a real courier app needs vs what this one asks for"; every finding with its evidence; optionally a VirusTotal hash lookup and a Gemini explanation written from the extracted facts (never the file). Read-aloud and "send to family on WhatsApp" buttons sit on the result.
+**What you see:** the risk meter and verdict ("HIGH RISK · Do NOT install this app"); the trojan triad as three cards; "what a real courier app needs vs what this one asks for"; every finding with its evidence; optionally a VirusTotal hash lookup and a Gemini explanation written from the extracted facts (never the file). Read-aloud and "send to family on WhatsApp" buttons sit on the result.
 
-**Try it:** `samples/Courier_Delivery_Update.apk` (an inert fixture we built) → **100 / 100**.
+**Try it:** `samples/Courier_Delivery_Update.apk` (an inert fixture we built) → **HIGH RISK**, 11 warning signs.
 
 **Honest limits:** static analysis can't see code downloaded after install or hidden by commercial packers (packers are flagged instead). Legitimate SMS apps and screen readers need the same permissions, which is why every finding shows its evidence and "low risk" is never presented as "safe".
 
@@ -196,6 +196,7 @@ bank-awareness teams who want explainable evidence rather than a bare "scam" lab
 |---|---|
 | **Explainable, never a black box** | Every result lists its findings with the evidence behind them ("payee name says *SBI Refund Dept* but it's a personal account"). |
 | **Deterministic first, AI last** | Rules, parsers, forensics and a calibrated ML model decide. Gemini is consulted **only when the result is ambiguous**, sees **masked** text, and its weight is capped. |
+| **Risk zones, not fake precision** | Every result shows a speedometer-style **risk meter** (very low / low / medium / high) with no numbers, and a banner listing the plain-language **checkpoints** behind it (✗ what looked wrong, ✓ what checked out). A scam check can say how risky and why; it can't honestly say "73.4%". |
 | **Honest about uncertainty** | Risk points are labelled "not a probability". The ML model is labelled *prototype*. A clean screenshot is **UNVERIFIED**, never "genuine", because only a bank can confirm a payment. |
 | **Works when services fail** | No Gemini key, Safe Browsing down, no internet for the AI: every scanner still gives a full answer and says which layer was unavailable. |
 | **Private by default** | Messages and screenshots are never stored; APKs are never installed or run and are deleted after the scan; keys never leave the server. |
@@ -210,7 +211,7 @@ bank-awareness teams who want explainable evidence rather than a bare "scam" lab
 | **SMS pipeline: explainable risk card** | **Payment screenshot forensics** |
 | ![An SBI KYC scam SMS rated HIGH RISK with its risk factors, sender check, Scam Memory, threat-intel status and the 6 layers that ran](docs/media/03-sms-risk.jpg) | ![An edited payment screenshot rated SUSPICIOUS with the fields read and the checks performed](docs/media/04-screenshot-verify.jpg) |
 | **APK X-Ray: banking-trojan fingerprint** | **Scam radar (`/trends`, labelled demo data)** |
-| ![A fake "Courier Delivery Update" APK scored 100/100 with the SMS + Accessibility + overlay trojan triad](docs/media/05-apk-xray.jpg) | ![The public trends page with weekly checks, scams caught and a 14-day chart](docs/media/06-trends.jpg) |
+| ![A fake "Courier Delivery Update" APK rated HIGH RISK with the SMS + Accessibility + overlay trojan triad](docs/media/05-apk-xray.jpg) | ![The public trends page with weekly checks, scams caught and a 14-day chart](docs/media/06-trends.jpg) |
 
 <details>
 <summary><b>📱 Mobile view</b> (the whole web app is mobile-first and installable as a PWA)</summary>
@@ -359,7 +360,7 @@ flowchart LR
 binary manifest (permissions, components, SDK levels) → a **custom DEX reader** collects every string and referenced API
 method in milliseconds → resources and assets (fake CVV/PIN forms, hidden payloads) → signing certificate → **24 rules**
 (banking-trojan triad, OTP theft, Telegram exfiltration, call forwarding, bank target lists, lure mismatch, brand
-impersonation…) → score 0–100 → optional Gemini explanation of the facts (never the file) → report cached by SHA-256,
+impersonation…) → internal points mapped to a risk zone → optional Gemini explanation of the facts (never the file) → report cached by SHA-256,
 APK bytes deleted. The analysis runs in a short-lived **spawn worker** so a hostile file can't exhaust the server.
 
 ### Documentation links
@@ -440,7 +441,7 @@ Open **http://localhost:8000** (landing) or **http://localhost:8000/app** (scann
 
 | Try this | Expected |
 |---|---|
-| `samples/Courier_Delivery_Update.apk` (inert fixture we built) | **100 / 100: Do NOT install** |
+| `samples/Courier_Delivery_Update.apk` (inert fixture we built) | **HIGH RISK: Do NOT install** |
 | `samples/qr/scam_refund_upi.png` | **Do NOT pay**, ML ≈ 97% scam |
 | `samples/qr/genuine_shop_upi.png` | **Low risk**, "Pay with your UPI app" |
 | `samples/screenshots/fake_edited_amount.png` / `genuine_receipt.png` | **SUSPICIOUS** / **UNVERIFIED** |

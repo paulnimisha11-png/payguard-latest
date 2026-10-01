@@ -189,7 +189,7 @@
     const what = isMsg ? `${esc(r.details.category_name ? r.details.category_name[L()] || r.details.category_name.en : A.t("msg_res"))} <span class="mono">${esc(r.payload.slice(0, 80))}</span>` : isShot ? `${esc(A.t("shot_label"))} <span class="mono">${esc(r.details.utr || r.file.name)}</span>` : isQR ? (r.details.type === "upi" ? `${r.details.payee_name || ""} <span class="mono">${esc(r.details.payee_vpa || "")}</span>`
                                                   : `<span class="mono">${esc((r.details.host || r.payload).slice(0, 80))}</span>`)
                       : `${esc(r.app.name || r.file.name)} <span class="mono">${esc(r.app.package)}</span>`;
-    $("#rsum").innerHTML = `<span class="pill">${esc(r.verdict.score)}/100</span><div>${isShot || isMsg ? "" : isQR ? "QR · " : "APK · "}${what}</div>`;
+    $("#rsum").innerHTML = `<span class="pill">${esc(window.PGMeter ? window.PGMeter.label(window.PGMeter.level(r), "en") : r.verdict.level)}</span><div>${isShot || isMsg ? "" : isQR ? "QR · " : "APK · "}${what}</div>`;
     $("#installed-q").hidden = isQR || isShot || isMsg;
     if (isMsg && (r.details.upi_ids || []).length && !$("#f-paidto").value) $("#f-paidto").value = r.details.upi_ids[0];
     $("#f-paidto").closest(".f").hidden = isShot;

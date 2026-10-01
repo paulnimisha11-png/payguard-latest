@@ -146,4 +146,8 @@
     <string name="risk_memory">Scam Memory</string>
     <string name="risk_ti">ಬೆದರಿಕೆ ಮಾಹಿತಿ</string>
     <string name="risk_safe">ಏನು ಮಾಡಬೇಕು</string>
+    <string name="zone_high">ಹೆಚ್ಚಿನ ಅಪಾಯ</string>
+    <string name="zone_medium">ಮಧ್ಯಮ ಅಪಾಯ</string>
+    <string name="zone_low">ಕಡಿಮೆ ಅಪಾಯ</string>
+    <string name="zone_very_low">ತುಂಬಾ ಕಡಿಮೆ ಅಪಾಯ</string>
 </resources>
