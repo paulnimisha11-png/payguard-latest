@@ -35,7 +35,7 @@ quiet period can take ~30–60 s while it wakes up.</sub>
 
 ## Table of contents
 
-1. [Context & overview](#1-context--overview): [problem](#the-problem) · [what PayGuard does](#what-payguard-does) · [inside the scanners](#inside-the-four-scanners) · [why it's different](#why-its-different) · [screenshots](#demo-screenshots--media)
+1. [Context & overview](#1-context--overview): [problem](#the-problem) · [what PayGuard does](#what-payguard-does) · [inside the scanners](#inside-the-four-scanners) · [around the scanners](#around-the-scanners) · [why it's different](#why-its-different) · [screenshots](#demo-screenshots--media)
 2. [Architecture & system design](#2-architecture--system-design): [system diagram](#system-architecture) · [execution flows](#end-to-end-execution-flows) · [docs](#documentation-links)
 3. [Installation & configuration](#3-installation--configuration): [prerequisites](#prerequisites--tech-stack) · [install](#step-by-step-installation) · [environment variables](#environment-variables-matrix)
 4. [Developer experience & quality control](#4-developer-experience--quality-control): [usage snippets](#usage-snippets) · [testing & QA](#testing--qa-commands)
@@ -176,16 +176,102 @@ Everything runs in a short-lived **worker process with a timeout**, so a hostile
 
 #### Around the scanners
 
-- **Community Scam Memory.** One tap ("It got me" / "It's fake") warns the next person who checks the same UPI ID,
-  number, website, screenshot or app. It is protected against false reports (independent networks, disputes, moderation).
-- **Family guardian mode.** A son or daughter gets an alert (Web Push / Android notification) when a parent's phone
-  hits a scam or they choose "pay anyway".
-- **One-tap complaint.** Pre-filled fields for cybercrime.gov.in, a 1930 helpline call script, a checklist and an
-  evidence PDF.
-- **Public scam radar** (`/trends`). What people are checking and reporting this week, with no personal data.
-- **Accessible by design.** The interface is in 7 Indian languages (English, हिंदी, ಕನ್ನಡ, தமிழ், తెలుగు, मराठी, বাংলা),
-  findings and advice are in English, Hindi and Kannada, results can be read aloud, and there is a "send to family on
-  WhatsApp" message.
+The scanners answer "is *this* a scam?". The features around them turn a single check into protection for the next
+person, a warning to the family, and evidence for the police.
+
+##### 🧠 Scam Memory: community reports + your own history
+
+**What it does.** After any check, one tap says **"It got me — I lost money"** or **"It's fake — I spotted it"**.
+The next person who checks the **same UPI ID, phone number, website, screenshot or APK**, anywhere, sees
+*"Already reported by N people"* and a raised risk score. Separately, the **"My scams"** page keeps *your own* history
+on your device: if a new message or QR looks like one you dealt with before, PayGuard says so.
+
+**How it works.**
+- Each report stores **only the scammer's identifiers** (UPI ID, domain, phone number, message-wording template, file hash), never the victim's message or screenshot.
+- **Look-alike matching** also catches *mutations* of a reported ID (`sbi.refund@ybl` → `sbi-refunds@ybl`), using edit distance plus character-pair overlap, with look-alike characters folded first. For APKs, a behaviour fingerprint catches repackaged copies of a flagged app.
+- Scoring is deliberately cautious: **1 report = caution, 2 = high, 3+ = critical**. Disputed indicators ("this is genuine") are shown but not counted.
+- The on-device history is stored in the browser's `localStorage` as patterns only (identifiers, scam type, tricks) and never leaves the phone.
+
+**Protection against false or malicious reports.**
+- Each device sends a random ID that is **hashed with a server-side salt**, so one phone counts once and nobody can be identified.
+- Reports also carry a salted **network hash**, so 50 reports from one Wi-Fi network don't look like 50 victims.
+- Official bank and government websites **can't be reported**.
+- Moderators can approve, hide or clear any identifier from `/admin.html`. Clearing also removes the warning from future scans.
+
+**Tech:** FastAPI endpoint `POST /api/reports`, SQLite `votes` + `indicators` tables, salted SHA-256 hashing, Levenshtein + bigram-Jaccard similarity (`app/analyzer/mutation.py`), browser `localStorage` (`static/memory.js`).
+
+##### 👨‍👩‍👧 Family guardian mode
+
+**What it does.** Scammers target parents and grandparents who won't ask for help in time. A son or daughter becomes
+their **guardian**: whenever the protected phone gets a **dangerous or suspicious result** on any scanner, or the parent
+taps **"pay anyway"** on a risky QR, every guardian gets an alert within seconds. The parent's own result screen shows
+*"Talk to Rahul before you pay — 📞 Call"*.
+
+**How it works.**
+- **Pairing:** the guardian creates a **6-digit code** (random, valid for 15 minutes). The parent types it and confirms what will be shared. Wrong guesses are rate-limited per IP.
+- **No accounts or passwords:** each phone holds a random device secret, and the server stores only its SHA-256. It is sent as an `X-PG-Device` header, so alerts are raised **on the server**, not by a page that could be closed.
+- **Delivery, three ways:**
+  - an in-app inbox;
+  - **Web Push** to Chrome on Android and to the iPhone home-screen app (iOS 16.4+);
+  - the Android app's own notifications, checked every 15 minutes and whenever the app opens.
+- **Privacy:** an alert contains the scam type and a **masked** identifier (e.g. `98••••••10`), never the message or screenshot. Alerts auto-delete after **30 days**; either side can unlink; "Forget this phone" erases everything.
+
+**Tech:** `app/family/` (pairing, alerts, `fam_*` SQLite tables), our **own Web Push implementation** (`app/family/push.py`: VAPID JWT signing + RFC 8291 `aes128gcm` payload encryption with `cryptography`, no third-party push service), service worker (`static/sw.js`), Android `JobScheduler` (`AlertJobService.java`).
+
+##### 🚨 One-tap complaint
+
+**What it does.** After a scam, the first hour matters: reporting to **1930** quickly can freeze the money. People lose
+that hour working out *what* to say. **"Report this scam"** asks a few questions (money lost? amount, UTR, bank, when,
+how it arrived) and returns everything ready to file:
+- **Fields for cybercrime.gov.in** with a copy button on each: category, sub-category, time, platform, amount, UTR, beneficiary, suspect identifiers, and a 200+ character description.
+- **What to say on the 1930 call**, in English, Hindi or Kannada, filled with the amount, UTR, beneficiary and time.
+- **A next-step checklist**, urgent steps first: 1930, block the bank card / UPI, uninstall the app, file on the portal, report the number on Chakshu, keep the evidence.
+- **An evidence PDF (A4):** summary, suspect identifiers, transaction details, the regenerated QR or file hashes, findings with evidence, the victim's statement, and an evidence fingerprint.
+- A reference number (`PG-YYMMDD-XXXXXX`) and a private link to come back later.
+
+**How it works.**
+- The server **re-derives the evidence from the original scan**; it never trusts findings sent by the browser.
+- Each complaint is protected by a random access token. It is shown once, and only its SHA-256 is stored.
+- Complaints **auto-delete after 30 days**, and the user can delete theirs immediately.
+- Scammer identifiers are kept separately with no victim data, which feeds Scam Memory.
+
+**Tech:** `app/complaints/` (Pydantic validation, portal field builder, multilingual call script), **ReportLab** for the PDF, `qrcode` to regenerate the scanned QR inside the evidence.
+
+PayGuard can't submit to the government portal itself (there is no public filing API), so it makes filing a
+copy-paste job of a few minutes.
+
+##### 📡 Public scam radar (`/trends`)
+
+**What it does.** A public page showing what PayGuard users are checking and reporting:
+- checks and scams caught this week vs last week;
+- a **14-day chart**;
+- **rising scam types** (e.g. "electricity cut-off messages up this week");
+- the **most-reported UPI IDs, phone numbers and websites**.
+
+Anyone can paste the exact UPI ID, number or website they were given and see whether it has been reported. This is
+useful for awareness campaigns, journalists and cyber cells.
+
+**How it works.**
+- **Anonymous counters only:** day, scanner, verdict and scam type. No content, no IPs, no user IDs.
+- An identifier is listed publicly only after **`APKXRAY_PUBLIC_MIN` (default 3) people report it from as many different networks**, and only while fewer than half as many say it's genuine.
+- UPI IDs and phone numbers are **partly masked** (`98••••••10`, `sbi•••••ds@ybl`); websites are **defanged** (`sbi-kyc[.]xyz`) so they can't be clicked.
+- `scripts/seed_demo.py` adds clearly labelled demo data for presentations (`--remove` deletes it). The page shows a banner whenever demo data is present.
+
+**Tech:** `app/trends.py` (aggregation, public-listing rules, masking, lookup with a 30-second cache), SQLite `events` + `moderation` tables, a vanilla-JS chart with an accessible "show as table" view (`static/trends.html`, `trends.js`), moderation UI `static/admin.html`.
+
+##### ♿ Accessible by design
+
+**What it does.** The people most at risk are often the least comfortable with English or technical words, so every
+result is written for them:
+- **Interface in 7 Indian languages:** English, हिंदी, ಕನ್ನಡ, தமிழ், తెలుగు, मराठी, বাংলা, switchable from any page and remembered.
+- **Findings, advice and the 1930 call script in English, Hindi and Kannada.** Every rule carries all three translations, not machine translation at runtime.
+- **Plain language, no jargon:** "Scanning this sends ₹4,999 FROM your account", not "collect request detected". Colours, icons and the hooded sentinel figure (green / yellow / red) carry the verdict even before anything is read.
+- **Read aloud:** uses the phone's own voice first, with a server fallback for languages the phone lacks.
+- **"Send to family on WhatsApp":** a ready-to-send message explaining the scam in simple words, so the warning travels to the people who need it.
+- **Install like an app, share like a message:** the website is an installable PWA. On Android, "Share → PayGuard" from WhatsApp or Messages sends a message or link straight to the right scanner.
+- **Readable everywhere:** mobile-first layout, large tap targets, `prefers-reduced-motion` respected, screen-reader labels (`aria-live`) on results.
+
+**Tech:** Web Speech API with an **eSpeak NG** server fallback (`/api/tts`, run locally as a subprocess; no third-party speech API), Web Share Target + service worker (PWA), family message from templates or, when `ANTHROPIC_API_KEY` is set, written naturally by Claude.
 
 **Target audience:** everyday UPI users and their families, small merchants who accept UPI, and the cyber-cell /
 bank-awareness teams who want explainable evidence rather than a bare "scam" label.
