@@ -110,7 +110,7 @@ def build(now: float | None = None, use_cache: bool = True) -> dict:
             return _cache["data"]
     today = dt.date.fromtimestamp(now)
     days = [(today - dt.timedelta(days=i)).isoformat() for i in range(13, -1, -1)]
-    this_week, last_week = set(days[7:]), set(days[:7])
+    this_week = set(days[7:])
     ev = store.events_since(days[0])
     daily = {d: {"day": d, "checks": 0, "threats": 0, "reports": 0} for d in days}
     by_kind = {k: {"kind": k, "name": KIND_NAMES[k], "checks": 0, "threats": 0} for k in KIND_NAMES}

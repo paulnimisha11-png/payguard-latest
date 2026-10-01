@@ -1043,9 +1043,9 @@ def analyze_screenshot(data: bytes, filename: str = "screenshot.png", expected_a
             en, hi, kn = FIELD[key]
             F.append(_f("TEXT_STYLE_MISMATCH", "high", 30,
                         T(f"The {en} is written in a different style", f"{hi} अलग अंदाज़ में लिखा है", f"{kn} ಬೇರೆ ಶೈಲಿಯಲ್ಲಿ ಬರೆಯಲಾಗಿದೆ"),
-                        T(f"Its letter thickness or colour doesn't match other text of the same size on this screen, as if it was typed in separately.",
-                          f"इसके अक्षरों की मोटाई या रंग इसी आकार के बाकी टेक्स्ट से मेल नहीं खाता, जैसे इसे अलग से टाइप किया गया हो।",
-                          f"ಇದರ ಅಕ್ಷರಗಳ ದಪ್ಪ ಅಥವಾ ಬಣ್ಣ ಇದೇ ಗಾತ್ರದ ಇತರ ಪಠ್ಯಕ್ಕೆ ಹೊಂದುವುದಿಲ್ಲ, ಪ್ರತ್ಯೇಕವಾಗಿ ಟೈಪ್ ಮಾಡಿದಂತೆ."),
+                        T("Its letter thickness or colour doesn't match other text of the same size on this screen, as if it was typed in separately.",
+                          "इसके अक्षरों की मोटाई या रंग इसी आकार के बाकी टेक्स्ट से मेल नहीं खाता, जैसे इसे अलग से टाइप किया गया हो।",
+                          "ಇದರ ಅಕ್ಷರಗಳ ದಪ್ಪ ಅಥವಾ ಬಣ್ಣ ಇದೇ ಗಾತ್ರದ ಇತರ ಪಠ್ಯಕ್ಕೆ ಹೊಂದುವುದಿಲ್ಲ, ಪ್ರತ್ಯೇಕವಾಗಿ ಟೈಪ್ ಮಾಡಿದಂತೆ."),
                         [f"Stroke ratio {me[1]:.3f} vs {med:.3f} for {len(peers)} similar words", f"Ink colour difference {ink_off:.0f}"], box))
 
     # error level analysis (meaningful for JPEG files)

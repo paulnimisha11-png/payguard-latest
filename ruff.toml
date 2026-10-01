@@ -1,0 +1,5 @@
+# Static analysis: real bugs only (syntax errors, undefined names, unused imports/variables).
+line-length = 140
+target-version = "py311"
+[lint]
+select = ["E9", "F"]

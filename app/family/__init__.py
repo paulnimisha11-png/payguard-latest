@@ -23,7 +23,6 @@ import threading
 import time
 
 from .. import store
-from ..analyzer.rules import T
 
 INVITE_TTL = 15 * 60
 ALERT_TTL_DAYS = 30

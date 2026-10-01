@@ -34,7 +34,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import store
-from .analyzer import ENGINE_VERSION, AnalysisError, analyze_apk
+from .analyzer import ENGINE_VERSION, AnalysisError
 from .explain import llm_message, template_message
 from .qr.analyzer import analyze_payload, decode_qr_image
 from .complaints import builder as cb
@@ -58,7 +58,9 @@ SHA_RE = re.compile(r"^[0-9a-f]{64}$")
 
 mimetypes.add_type("application/manifest+json", ".webmanifest")
 mimetypes.add_type("text/javascript", ".js")
-app = FastAPI(title="APK X-Ray", version=ENGINE_VERSION)
+app = FastAPI(title="PayGuard API", version=ENGINE_VERSION,
+              description="Scam checks for UPI QR codes and links, payment screenshots, SMS / WhatsApp messages and Android APKs. "
+                          "Every response explains its verdict (findings with evidence, EN / HI / KN).")
 
 
 @app.on_event("startup")

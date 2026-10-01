@@ -8,3 +8,6 @@ downloads/*.apk
 .env.*
 !.env.example
 !app/ml/data/
+
+!.env.example
+.coverage

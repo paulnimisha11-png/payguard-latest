@@ -25,7 +25,7 @@ import unicodedata
 from ..analyzer.rules import SEVERITY_ORDER, T, Finding
 from .urlcheck import check_url
 from .urlextract import extract_urls
-from ..qr.analyzer import AUTHORITY_WORDS, BRAND_DOMAINS, KNOWN_PSP_HANDLES, analyze_payload
+from ..qr.analyzer import AUTHORITY_WORDS, BRAND_DOMAINS, KNOWN_PSP_HANDLES
 
 MAX_LEN = 5000
 

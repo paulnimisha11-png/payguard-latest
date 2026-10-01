@@ -8,7 +8,7 @@ Web app + Android app with three scanners, all giving a risk score + plain-langu
 ## Commands
 - Install: `pip install -r requirements.txt`
 - Run: `uvicorn app.main:app --reload --port 8000` then open http://localhost:8000
-- Test: `python -m pytest -q tests` (must stay green)
+- Test: `python -m pytest -q tests` (must stay green); lint: `ruff check app scripts tests` (ruff.toml; CI runs both + coverage)
 - Demo file: `samples/Courier_Delivery_Update.apk` (inert fixture we built; must score 100 / "danger")
 
 ## Layout
@@ -46,6 +46,7 @@ Web app + Android app with three scanners, all giving a risk score + plain-langu
 - UPI ML model (PROTOTYPE, synthetic data): `app/ml/features.py` (FEATURES; same code for training and serving; never uses the rule score), `app/ml/upi_model.py` (pure-Python runtime of `upi_model.json`, float32 tree comparisons, calibrated + clipped 1-99%, occlusion explanations, `apply(rep)`), called in `_after_check` after `apply_reports` for kind qr. UPI QR verdict = ML bands (0.8 danger / 0.5 suspicious / 0.2 caution) with a safety floor = rule level when hard evidence exists (HARD_EVIDENCE ids, critical findings, invalid format); `rep['rule_verdict']` keeps the rules. Retrain: `python scripts/make_upi_dataset.py && python scripts/train_upi_model.py` (needs requirements-ml.txt; it asserts the export matches scikit-learn). Never claim the synthetic metrics are real-world accuracy. Frontend `renderML()` + `#mlcard`. Tests: tests/test_qr_ml.py.
 - Screenshot verification: `app/screenshot/verify.py` (`extra_findings` = UPI ID format, IMPOSSIBLE_DATE, QR_UPI_INVALID / QR_AMOUNT_MISMATCH / QR_PAYEE_MISMATCH; `drop_qr_text` removes OCR noise inside QR codes; `summarize` -> `rep['verification']` {status, reason, fields, issues, checks}). Status: SUSPICIOUS on tampering/inconsistency, VERIFIED ONLY via `TRUSTED_SOURCES` (empty: no real bank/UPI source connected; never add a fake one), otherwise UNVERIFIED. SQLite history is never proof of payment. Frontend `renderVerification()` in shot.js, `#verifycard`, sentinel uses the status. Tests: tests/test_screenshot_verify.py.
 - SMS pipeline: `app/message/pipeline.py` `check(text, sender, received_at, use_ai)` = analyze_message (rules; links via `urlextract.extract_urls` + `urlcheck.check_url`) -> `sender.analyze_sender` -> `memory.lookup` -> `threatintel.check_urls` (SAFE_BROWSING_API_KEY, optional) -> `risk.combine` -> `ai.analyze` (Gemini via `reasoning.generate`, only when ambiguous, masked text, cached in store `kv_cache`) -> `risk.finalize` (again in `_after_check` after community reports). Risk points are not a probability; AI max +25, never lowers, alone at most MEDIUM. Every layer reports status in `rep['risk']['layers']`. Never send raw phone/UPI/links to Gemini; never put keys in the APK or frontend. Frontend `renderRisk()` in msg.js + `#riskcard`; Android `buildRiskSummary()`. Tests: tests/test_sms_pipeline.py.
+- Docs: README follows the ASYNC'26 README standard (sections 1-6); deep feature detail lives in `docs/FEATURES.md`; `docs/openapi.json` is exported from `app.openapi()` (regenerate after API changes); screenshots in `docs/media/`. Keep numbers in the README (tests, coverage, benchmarks) true when they change.
 - `HACKATHON.md` lists prior vs hackathon work; keep it updated.
 
 ## Conventions
